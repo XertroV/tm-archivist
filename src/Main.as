@@ -6,11 +6,13 @@ UI::Font@ g_StdBoldFont = UI::LoadFont("DroidSans-bold.ttf", 16);
 UI::Font@ g_StdFont = UI::LoadFont("DroidSans.ttf", 16);
 
 void Main() {
+    startnew(ClearTaskCoro);
     UserHasPermissions = Permissions::PlayLocalMap()
         && Permissions::CreateLocalReplay();
     LocalStats::Load();
     if (UserHasPermissions)
         startnew(MainCoro);
+    MLHook::Queue_MessageManialinkPlaygroundServer("Archivist", "TestNetwrite");
 }
 
 void OnDisabled() { _Unload(); }

@@ -155,6 +155,12 @@
  declare Boolean Server_IsAgainstReplay;
  declare Ident[] Server_ReplayGhostIds for This;
  declare Ident[] Server_ReplayGhostInstanceIds for This;
+
+ declare Ident[] Server_PbGhosts for This;
+//  declare Ident[] Server_PbGhosts for This;
+
+
+
  ***
 
  ***Match_StartServer***
@@ -416,14 +422,11 @@
      } else if (Event.Type == Events::C_Type_GiveUp) {
         if (Event.Player != Null) {
             declare CGhost _Ghost = Ghost_RetrieveFromPlayer(Event.Player);
-            // declare CGhost _GhostSegmented = Ghost_RetrieveFromPlayer(Event.Player, True);
-            GhostMgr.Ghost_Add(_Ghost, True);
-            // GhostMgr.Ghost_Add(_GhostSegmented, True);
-            // GhostMgr.Ghost_AddWaypointSynced(_Ghost, True);
-            // GhostMgr.Ghost_AddWaypointSynced(_GhostSegmented, True);
-            SaveReplay(_Ghost, "TestPartial");
-            //SaveReplay(_GhostSegmented, "TestPartial2");
-            DataFileMgr.Ghost_Upload("http://localhost:8000/ghost/upload", _Ghost, "");
+            if (_Ghost != Null) {
+                MB_AddGhost(_Ghost);
+                MB_SavePartialReplay(_Ghost);
+                MB_UploadGhost(_Ghost);
+            }
         }
      }
  }
@@ -1132,3 +1135,24 @@
          Race::Start(Players[0]);
      }
  }
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Add a ghost to the playground based on
+Void MB_AddGhost(CGhost Ghost) {
+    // todo: add ghost based on settings
+    GhostMgr.Ghost_Add(_Ghost, True);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// save a partial replay based on user settings
+Void MB_SavePartialReplay(CGhost Ghost) {
+    // todo: test whether to save replay
+    SaveReplay(_Ghost, "TestPartial");
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Upload a ghost based on user settings
+Void MB_UploadGhost(CGhost Ghost) {
+    // todo: test whether to upload ghost
+    DataFileMgr.Ghost_Upload("http://localhost:8000/ghost/upload", _Ghost, "");
+}

@@ -67,7 +67,7 @@ class Folder {
 
     void DrawMapInfo(int i) {
         UI::AlignTextToFramePadding();
-        UI::SetCursorPos(UI::GetCursorPos() + vec2(framePadding.x, 0));
+        UI::SetCursorPos(UI::GetCursorPos() + vec2(UI::GetStyleVarVec2(UI::StyleVar::FramePadding).x, 0));
         DrawMapSelector(i);
     }
 

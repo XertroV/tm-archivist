@@ -158,9 +158,6 @@
 
  declare Ident[] Server_PbGhosts for This;
 //  declare Ident[] Server_PbGhosts for This;
-
-
-
  ***
 
  ***Match_StartServer***
@@ -195,6 +192,10 @@
  foreach (Player in AllPlayers) {
      StateMgr::InitializePlayer(Player);
  }
+
+ declare CPlayer MainPlayer <=> AllPlayers[0];
+ declare CUIConfig MainPlayerUI <=> UIManager.GetUI_Player(MainPlayer);
+ declare netread Text[][] MLHook_NetQueue_Archivist for MainPlayerUI;
 
  // Unload previous ghosts
  ResetRecord();
@@ -362,6 +363,10 @@
 
  ***Match_PlayLoop***
  ***
+ foreach (Msgs in MLHook_NetQueue_Archivist) {
+    ProcessIncomingFromMLHook(Msgs);
+ }
+
  // Manage race events
  declare RacePendingEvents = Race::GetPendingEvents();
  foreach (Event in RacePendingEvents) {
@@ -1155,4 +1160,12 @@ Void MB_SavePartialReplay(CGhost Ghost) {
 Void MB_UploadGhost(CGhost Ghost) {
     // todo: test whether to upload ghost
     DataFileMgr.Ghost_Upload("http://localhost:8000/ghost/upload", _Ghost, "");
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Process an incoming msg from MLHook. Used to update settings and the like.
+/// Note: an individual message is an array of text. usually the first entry is a key that identifies the msg type.
+Void ProcessIncomingFromMLHook(Text[] Msgs) {
+    if (Msgs.count == 0) return;
+    log("Got MLHook msg: "^Msgs);
 }

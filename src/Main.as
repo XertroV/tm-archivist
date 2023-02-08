@@ -10,9 +10,13 @@ void Main() {
     UserHasPermissions = Permissions::PlayLocalMap()
         && Permissions::CreateLocalReplay();
     LocalStats::Load();
-    if (UserHasPermissions)
-        startnew(MainCoro);
-    MLHook::Queue_MessageManialinkPlaygroundServer("Archivist", "TestNetwrite");
+    if (!UserHasPermissions) {
+        NotifyWarning("You don't appear to have the necessary permissions: PlayLocalMap and CreateLocalReplay");
+        return;
+    }
+    startnew(MainCoro);
+    UpdateArchivistGameModeScript();
+    UpdateModeSettingsViaMLHook();
 }
 
 void OnDisabled() { _Unload(); }
@@ -21,6 +25,15 @@ void _Unload() {
     LocalStats::Save();
 }
 
+void UpdateArchivistGameModeScript() {
+    if (!IO::FolderExists(IO::FromUserGameFolder("Scripts/Modes/Trackmania"))) {
+        IO::CreateFolder(IO::FromUserGameFolder("Scripts/Modes/Trackmania"), true);
+    }
+    IO::File gmFile(IO::FromUserGameFolder("Scripts/Modes/Trackmania/TM_Archivist_Local.Script.txt"), IO::FileMode::Write);
+    gmFile.Write(TM_ARCHIVIST_LOCAL_SCRIPT_TXT);
+    gmFile.Close();
+    trace('Updated Archivist game mode script');
+}
 
 void MainCoro() {
     while (true) {
@@ -118,7 +131,7 @@ void DrawToolbar() {
 const string ArchivistMode = "TrackMania/TM_Archivist_Local";
 
 Tab@[] mainTabs = {
-    AboutTab(), HomeTab()
+    AboutTab(), HomeTab(), _LoadMaps
 };
 
 void DrawMain() {

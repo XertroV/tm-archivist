@@ -1,3 +1,4 @@
+const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 /**
  *	PlayMap mode
  */
@@ -55,6 +56,18 @@
      Ident GhostInstanceId;
      Task::K_Task Task_RetrieveGhost;
      Task::K_Task Task_RetrieveRecords;
+ }
+
+ #Struct K_PluginSettings {
+    Integer S_NbPbGhosts;
+    Integer S_SaveAfterRaceTimeMs;
+    Boolean S_KeepAllGhostsLoaded;
+    Boolean S_UploadGhosts;
+    Boolean S_SaveGhosts;
+    Boolean S_SaveReplays;
+    Boolean S_SeparatePartialRuns;
+    Text S_ReplayNameTemplate;
+    Text S_ReplayFolderTemplate;
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -157,7 +170,9 @@
  declare Ident[] Server_ReplayGhostInstanceIds for This;
 
  declare Ident[] Server_PbGhosts for This;
-//  declare Ident[] Server_PbGhosts for This;
+ //  declare Ident[] Server_PbGhosts for This;
+
+ declare K_PluginSettings ArchivistSettings;
  ***
 
  ***Match_StartServer***
@@ -193,9 +208,7 @@
      StateMgr::InitializePlayer(Player);
  }
 
- declare CPlayer MainPlayer <=> AllPlayers[0];
- declare CUIConfig MainPlayerUI <=> UIManager.GetUI_Player(MainPlayer);
- declare netread Text[][] MLHook_NetQueue_Archivist for MainPlayerUI;
+ declare netread Text[][] MLHook_NetQueue_Archivist for Teams[0];
 
  // Unload previous ghosts
  ResetRecord();
@@ -334,6 +347,7 @@
  declare Ident Round_LastRaceGhostId;
  declare Boolean Round_ImprovedTime;
  declare Boolean Round_NewRecord;
+ declare Integer Last_Q_Incoming;
  ***
 
  ***Match_StartRound***
@@ -363,8 +377,15 @@
 
  ***Match_PlayLoop***
  ***
- foreach (Msgs in MLHook_NetQueue_Archivist) {
-    ProcessIncomingFromMLHook(Msgs);
+ declare CPlayer MainPlayer <=> Players[0];
+ declare CUIConfig MainPlayerUI = UIManager.GetUI(MainPlayer);
+ declare netread Text[][] MLHook_NetQueue_Archivist for MainPlayerUI;
+ declare netread Integer MLHook_NetQueue_Archivist_Last for MainPlayerUI;
+ if (MLHook_NetQueue_Archivist_Last > Last_Q_Incoming) {
+    Last_Q_Incoming = MLHook_NetQueue_Archivist_Last;
+    foreach (Msgs in MLHook_NetQueue_Archivist) {
+       ProcessIncomingFromMLHook(Msgs);
+    }
  }
 
  // Manage race events
@@ -783,6 +804,17 @@
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  // Functions
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+
+
+ Void AddDebugLog(Text msg) {
+    declare netwrite Text Net_DebugMode_Logs for Teams[0];
+    declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
+    Net_DebugMode_Logs = msg ^ "\n" ^ Net_DebugMode_Logs;
+    Net_DebugMode_Logs_Serial += 1;
+}
+
+
+
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  /// Start a task to get the player's record
  K_LoadRecordTask LoadRecord(Text _MapUid, Text _ScopeType, Text _ScopeId, Text _ModeName, Text _ModeCustomData) {
@@ -1145,21 +1177,39 @@
 /// Add a ghost to the playground based on
 Void MB_AddGhost(CGhost Ghost) {
     // todo: add ghost based on settings
-    GhostMgr.Ghost_Add(_Ghost, True);
+    GhostMgr.Ghost_Add(Ghost, True);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// save a partial replay based on user settings
 Void MB_SavePartialReplay(CGhost Ghost) {
     // todo: test whether to save replay
-    SaveReplay(_Ghost, "TestPartial");
+    SaveReplay(Ghost, "TestPartial");
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Upload a ghost based on user settings
 Void MB_UploadGhost(CGhost Ghost) {
     // todo: test whether to upload ghost
-    DataFileMgr.Ghost_Upload("http://localhost:8000/ghost/upload", _Ghost, "");
+    DataFileMgr.Ghost_Upload("http://localhost:8000/upload/ghost/MAP/12345?partial=True", Ghost, "OP_TOKEN: test123\nBLAH: 888");
+}
+
+
+Void ProcessArchivistSetting(Text[] Msgs) {
+    ArchivistSettings = K_PluginSettings.fromjson(Msgs[1]);
+}
+
+
+Void ProcessIncoming(Text[] Msgs) {
+    if (Msgs.count < 1) return;
+    declare Text msgType = Msgs[0];
+    // if we have single thing msgs, process here
+    if (Msgs.count < 2) return;
+    if (msgType == "ArchivistSettings") {
+        ProcessArchivistSetting(Msgs);
+        return;
+    }
+    AddDebugLog("Unhandled incoming netread msg: " ^ Msgs);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1167,5 +1217,7 @@ Void MB_UploadGhost(CGhost Ghost) {
 /// Note: an individual message is an array of text. usually the first entry is a key that identifies the msg type.
 Void ProcessIncomingFromMLHook(Text[] Msgs) {
     if (Msgs.count == 0) return;
-    log("Got MLHook msg: "^Msgs);
+    AddDebugLog("Got MLHook msg: " ^ Msgs);
+    ProcessIncoming(Msgs);
 }
+""";

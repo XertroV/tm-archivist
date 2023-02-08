@@ -1,5 +1,4 @@
 [Setting hidden]
-bool S_AboutTabOpen2 = true;
 bool S_AboutTabOpen = true;
 
 
@@ -12,20 +11,11 @@ bool S_KeepAllGhostsLoaded = false;
 [Setting hidden]
 int S_SaveAfterRaceTime = 5;
 
-string S_PartialRunFolder = "Archived/Partial";
-string S_CompleteRunFolder = "Archived/Complete";
-
-enum FolderScheme {
-    None,
-    MapName,
-    Date,
-    MapThenDate,
-    DateThenMap
-}
-
+[Setting hidden]
 string S_ReplayNameTemplate = "{date_time} {duration}ms {username}";
-string S_ReplayFolderTemplate = "{map_name}";
 
+[Setting hidden]
+string S_ReplayFolderTemplate = "{map_name}";
 
 string RenderTemplateExample(const string &in template) {
     return template.Replace("{date_time}", FmtTimestamp())

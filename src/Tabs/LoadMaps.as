@@ -3,17 +3,70 @@ class LoadMapsTab : Tab {
         super(Icons::FolderOpen + " Load Map(s)", false);
     }
 
-    void DrawInner() override {
-        Heading("Load Map(s)");
+    bool initialized = false;
+    void InitializeSync() {
+        if (initialized) return;
+        initialized = true;
+        startnew(CoroutineFunc(LoadCurrentFolder));
+    }
 
+    void DrawInner() override {
+        if (!initialized) InitializeSync();
+        auto pos = UI::GetCursorPos();
+        UI::AlignTextToFramePadding();
+        Heading("Load Map(s)", 0);
+        auto nextPos = UI::GetCursorPos();
+        UI::SetCursorPos(pos + vec2(UI::GetContentRegionMax().x - 100, 0));
+        if (UI::Button("Play Map")) {
+            startnew(CoroutineFunc(OnLoadMap));
+        }
+        UI::SetCursorPos(nextPos);
+
+        UI::BeginTabBar("load maps method");
+        if (UI::BeginTabItem("Local Maps")) {
+            DrawLocalMapsBrowser();
+            UI::EndTabItem();
+        }
+        if (UI::BeginTabItem("From TMX")) {
+            DrawTMXLoadMaps();
+            UI::EndTabItem();
+        }
+        if (UI::BeginTabItem("Campaign")) {
+            DrawCampaignLoadMaps();
+            UI::EndTabItem();
+        }
+        UI::EndTabBar();
+    }
+
+    void OnLoadMap() {
+        UpdateModeSettingsViaMLHook();
+    }
+
+
+    void DrawLocalMapsBrowser() {
+        if (CurrentFolder is null) {
+            UI::Text("Loading Maps...");
+        } else {
+            CurrentFolder.DrawTree();
+        }
+    }
+
+    void DrawTMXLoadMaps() {
+
+    }
+
+    void DrawCampaignLoadMaps() {
+
+    }
+
+    Folder@ CurrentFolder = null;
+
+    void LoadCurrentFolder() {
+        @CurrentFolder = Folder("Maps", Map_GetFilteredGameList(4, "", false, false, false));
     }
 }
 
-Folder@ CurrentFolder = null;
-
-void LoadCurrentFolder() {
-    @CurrentFolder = Folder("Maps", Map_GetFilteredGameList(4, "", false, false, false));
-}
+LoadMapsTab@ _LoadMaps = LoadMapsTab();
 
 class Folder {
     string[] SubFolders;
@@ -61,8 +114,8 @@ class Folder {
 
     void OnChooseSubfolder(ref@ r) {
         auto sf = cast<string[]>(r)[0];
-        @CurrentFolder = null;
-        @CurrentFolder = Folder(sf, Map_GetFilteredGameList(4, sf, false, false, false), this);
+        @_LoadMaps.CurrentFolder = null;
+        @_LoadMaps.CurrentFolder = Folder(sf, Map_GetFilteredGameList(4, sf, false, false, false), this);
     }
 
     void DrawMapInfo(int i) {
@@ -95,7 +148,7 @@ class Folder {
             if (!cannotBeClosed) UI::TreePop();
         } else if (!cannotBeClosed) {
             // if we were closed, open the parent folder.
-            @CurrentFolder = Parent;
+            @_LoadMaps.CurrentFolder = Parent;
         } else {
         }
     }

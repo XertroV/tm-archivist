@@ -21,3 +21,17 @@ void UpdateModeSettingsViaMLHook() {
 
     MLHook::Queue_MessageManialinkPlaygroundServer(GameMode_PageUID, {'ArchivistSettings', Json::Write(data)});
 }
+
+uint lastUpdateTokenStarted = 0;
+void UpdateApiTokenViaMLHook() {
+    lastUpdateTokenStarted = Time::Now;
+    uint myUpdateStarted = lastUpdateTokenStarted;
+    while (true) {
+        // we were superceded by another pending update
+        if (lastUpdateTokenStarted != myUpdateStarted) return;
+        // don't send to random servers
+        if (InArchivistGameMode) break;
+        sleep(250);
+    }
+    MLHook::Queue_MessageManialinkPlaygroundServer(GameMode_PageUID, {'UpdateToken', CurrentOpenplanetToken()});
+}

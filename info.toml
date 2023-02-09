@@ -3,8 +3,9 @@ name     = "Archivist"
 author   = "XertroV"
 category = "Replay"
 version  = "0.1.0"
+siteid   = 328
 
 [script]
 #__DEFINES__
-dependencies = ["MLHook"]
+dependencies = ["MLHook", "NadeoServices"]
 # , "VehicleState"

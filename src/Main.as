@@ -15,6 +15,7 @@ void Main() {
         return;
     }
     startnew(MainCoro);
+    startnew(AuthLoop);
     UpdateArchivistGameModeScript();
     UpdateModeSettingsViaMLHook();
 }
@@ -25,11 +26,33 @@ void _Unload() {
     LocalStats::Save();
 }
 
+const string ArchivistModeScriptName = "TM_Archivist_" + Time::Now + "_Local";
+
 void UpdateArchivistGameModeScript() {
-    if (!IO::FolderExists(IO::FromUserGameFolder("Scripts/Modes/Trackmania"))) {
-        IO::CreateFolder(IO::FromUserGameFolder("Scripts/Modes/Trackmania"), true);
+    string scriptsModeTmFolder = IO::FromUserGameFolder("Scripts/Modes/Trackmania");
+    if (!IO::FolderExists(scriptsModeTmFolder)) {
+        IO::CreateFolder(scriptsModeTmFolder, true);
     }
-    IO::File gmFile(IO::FromUserGameFolder("Scripts/Modes/Trackmania/TM_Archivist_Local.Script.txt"), IO::FileMode::Write);
+    auto scriptFiles = IO::IndexFolder(scriptsModeTmFolder, false);
+    string[]@ parts;
+    for (uint i = 0; i < scriptFiles.Length; i++) {
+        if (scriptFiles[i].EndsWith("_Local.Script.txt")) {
+            @parts = scriptFiles[i].Split("/");
+            if (parts.Length > 0 && parts[parts.Length - 1].StartsWith("TM_Archivist_")) {
+                trace('Removing old archivist script file: ' + scriptFiles[i]);
+                IO::Delete(scriptFiles[i]);
+            }
+        }
+    }
+
+    string debugShim = IO::FromUserGameFolder("Scripts/Modes/Trackmania/TM_Archivist_Base.Script.txt");
+    if (!IO::FileExists(debugShim)) {
+        IO::File debugFile(debugShim, IO::FileMode::Write);
+        debugFile.Write('#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"\n#Const C_IsDebug True\n');
+        debugFile.Close();
+    }
+
+    IO::File gmFile(IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistModeScriptName + ".Script.txt"), IO::FileMode::Write);
     gmFile.Write(TM_ARCHIVIST_LOCAL_SCRIPT_TXT);
     gmFile.Close();
     trace('Updated Archivist game mode script');
@@ -70,6 +93,22 @@ void RenderMenu() {
     }
 }
 
+#if DEV && SIG_DEVELOPER
+/** Render function called every frame intended only for menu items in the main menu of the `UI`.
+*/
+void RenderMenuMain() {
+    if (UI::BeginMenu("Archivist Debug")) {
+        if (UI::MenuItem("Explore PgScript")) ExploreNod(GetApp().PlaygroundScript);
+        if (UI::MenuItem("Explore PgScript.DataFileMgr")) ExploreNod(GetApp().PlaygroundScript.DataFileMgr);
+        if (UI::MenuItem("Explore N.CMAPG.DataFileMgr")) ExploreNod(GetApp().Network.ClientManiaAppPlayground.DataFileMgr);
+        if (UI::MenuItem("Auth Token Len: " + g_opAuthToken.Length)) {
+            log_trace("Auth token: " + g_opAuthToken);
+        }
+        UI::EndMenu();
+    }
+}
+#endif
+
 string m_URL;
 string m_TMX;
 bool m_UseTmxMirror = false;
@@ -77,7 +116,8 @@ bool m_UseTmxMirror = false;
 /** Render function called every frame.
 */
 void Render() {
-    if (!ShowWindow || CurrentlyInMap || GetApp().Editor !is null) return;
+    if (!ShowWindow || !UI::IsOverlayShown() || GetApp().Editor !is null) return;
+    _AuthLoopStartEarly = true;
     vec2 size = vec2(900, 800);
     vec2 pos = (vec2(Draw::GetWidth(), Draw::GetHeight()) - size) / 2.;
     UI::SetNextWindowSize(int(size.x), int(size.y), UI::Cond::FirstUseEver);
@@ -128,7 +168,18 @@ void DrawToolbar() {
 
 
 
-const string ArchivistMode = "TrackMania/TM_Archivist_Local";
+// const string ArchivistMode = "TrackMania/TM_Archivist_Local";
+
+bool InArchivistGameMode {
+    get {
+        try {
+            auto si = cast<CTrackManiaNetworkServerInfo>(GetApp().Network.ServerInfo);
+            return si.ModeName == ArchivistModeScriptName;
+        } catch {}
+        return false;
+    }
+}
+
 
 Tab@[] mainTabs = {
     AboutTab(), HomeTab(), _LoadMaps
@@ -146,7 +197,7 @@ void DrawMain() {
     //     UI::EndTabItem();
     // }
 
-    if (UI::BeginTabItem(Icons::FolderOpen + " Load Map(s)")) {
+    if (UI::BeginTabItem(Icons::FolderOpen + " Load Map")) {
         UI::EndTabItem();
     }
 

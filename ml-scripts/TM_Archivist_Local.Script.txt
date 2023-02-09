@@ -1,7 +1,8 @@
 /**
  *	PlayMap mode
  */
- #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+//  #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+ #Extends "Modes/Trackmania/TM_Archivist_Base.Script.txt"
 
  #Const CompatibleMapTypes "TrackMania\\TM_Race,TM_Race"
  #Const Version "2022-10-24"
@@ -167,11 +168,6 @@
  declare Boolean Server_IsAgainstReplay;
  declare Ident[] Server_ReplayGhostIds for This;
  declare Ident[] Server_ReplayGhostInstanceIds for This;
-
- declare Ident[] Server_PbGhosts for This;
- //  declare Ident[] Server_PbGhosts for This;
-
- declare K_PluginSettings ArchivistSettings;
  ***
 
  ***Match_StartServer***
@@ -419,7 +415,8 @@
                  }
                  Scores::UpdatePlayerPrevRace(Event.Player);
 
-                 declare CGhost Ghost = Ghost_RetrieveFromPlayer(Event.Player);
+                 declare CGhost Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player);
+                //  Ghost.Result.NbRespawns = Event.Player.Score.NbRespawnsRequested;
                  if (Ghost != Null) {
                      if (Round_LastRaceGhostId != NullId && DataFileMgr.Ghosts.existskey(Round_LastRaceGhostId)) {
                          DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
@@ -429,7 +426,7 @@
 
                  declare Integer RecordTime = GetRecordTime();
                  if (RecordTime < 0 || Event.RaceTime < GetRecordTime()) {
-                     SetRecord(Ghost_RetrieveFromPlayer(Event.Player), !Server_IsAgainstReplay);
+                     SetRecord(Ghost_RetrieveFromPlayerWithValues(Event.Player), !Server_IsAgainstReplay);
                      Map_Map = SetMapNewRecord(Event.Player, Map_Map);
                      NetShare::SetMap(Map_Map);
                      Round_ImprovedTime = True;
@@ -446,11 +443,13 @@
          }
      } else if (Event.Type == Events::C_Type_GiveUp) {
         if (Event.Player != Null) {
-            declare CGhost _Ghost = Ghost_RetrieveFromPlayer(Event.Player);
+            declare CGhost _Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player);
+            _Ghost.Result.Time = Event.Player.CurrentRaceTime;
+            // _Ghost.Result.NbRespawns = Event.Player.Score.NbRespawnsRequested;
             if (_Ghost != Null) {
                 MB_AddGhost(_Ghost);
                 MB_SavePartialReplay(_Ghost);
-                MB_UploadGhost(_Ghost);
+                MB_UploadGhost(_Ghost, True);
             }
         }
      }
@@ -621,13 +620,15 @@
           * but I'm not too sure, so just using this kinda hacky way to transfer the time onto the new ghost
           */
          declare Integer LastRaceTime = DataFileMgr.Ghosts[Round_LastRaceGhostId].Result.Time;
-         declare CGhost Ghost = Ghost_RetrieveFromPlayer(Player);
+        //  declare Integer NbRespawns = DataFileMgr.Ghosts[Round_LastRaceGhostId].Result.NbRespawns;
+         declare CGhost Ghost = Ghost_RetrieveFromPlayerWithValues(Player);
          if (
              Ghost != Null &&
              Ghost.Result.Checkpoints.count > 0 &&
              Ghost.Result.Checkpoints[Ghost.Result.Checkpoints.count - 1] == LastRaceTime
          ) {
              Ghost.Result.Time = LastRaceTime;
+            //  Ghost.Result.NbRespawns = NbRespawns;
              DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
              Round_LastRaceGhostId = Ghost.Id;
          } else if (Ghost != Null) {
@@ -777,7 +778,7 @@
  if (Round_LastRaceGhostId != NullId) {
      if (DataFileMgr.Ghosts.existskey(Round_LastRaceGhostId)) {
         GhostMgr.Ghost_Add(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
-        GhostMgr.Ghost_AddWaypointSynced(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
+        // GhostMgr.Ghost_AddWaypointSynced(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
         //  DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
      }
      Round_LastRaceGhostId = NullId;
@@ -801,17 +802,45 @@
  ***
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+ //
+ // ######## ##     ## ##    ##  ######   ######
+ // ##       ##     ## ###   ## ##    ## ##    ##
+ // ##       ##     ## ####  ## ##       ##
+ // ######   ##     ## ## ## ## ##        ######
+ // ##       ##     ## ##  #### ##             ##
+ // ##       ##     ## ##   ### ##    ## ##    ##
+ // ##        #######  ##    ##  ######   ######
+ //
  // Functions
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
 
  Void AddDebugLog(Text msg) {
+    if (!C_IsDebug) return;
     declare netwrite Text Net_DebugMode_Logs for Teams[0];
     declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
     Net_DebugMode_Logs = msg ^ "\n" ^ Net_DebugMode_Logs;
     Net_DebugMode_Logs_Serial += 1;
 }
 
+
+CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player) {
+    declare Ghost = Ghost_RetrieveFromPlayer(Player);
+    Ghost.Result.NbRespawns = Player.Score.NbRespawnsRequested;
+    return Ghost;
+}
+
+
+// Archivist stuff
+declare K_PluginSettings ArchivistSettings;
+declare Text Archivist_Openplanet_Token;
+declare Ident[] Server_PbGhosts;
+
+
+
+Text OpAuthHeaders() {
+    return "Authorization: openplanet " ^ Archivist_Openplanet_Token;
+}
 
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1050,16 +1079,34 @@
      }
  }
 
- Void SaveReplay(CGhost Ghost, Text NameExtra) {
-    declare Text Time = TiL::FormatDate(TiL::GetCurrent(), TiL::EDateFormats::Time);
-    declare Text Date = TiL::FormatDate(TiL::GetCurrent(), TiL::EDateFormats::DateShort);
-    declare Text FullDate = TL::RegexReplace("\\W", Date^"_"^Time, "g", "-");
-    declare Text RaceTime = TL::TimeToText(Ghost.Result.Time, True, True);
-    RaceTime = TL::Replace(RaceTime, ":", "'");
-    RaceTime = TL::Replace(RaceTime, ".", "''");
-    declare Text ReplayFileName = NameExtra^"_"^Map.MapInfo.Name^"_"^Players[0].User.Name^"_"^FullDate^"("^RaceTime^")";
+ Text RenderPathTemplate(Text Template, CGhost Ghost) {
+    declare Text CLDT = System.CurrentLocalDateText;
+    declare Integer Timestamp = System.CurrentLocalDate;
+    declare CLDTParts = TL::Split(" ", CLDT);
+    declare Date = TL::Replace(CLDTParts[0], "/", "-");
+    declare Time = TL::Replace(CLDTParts[1], ":", "-");
+    declare Ret = TL::Replace(Template, "{map_uid}", Map.MapInfo.MapUid);
+    Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
+    Ret = TL::Replace(Ret, "{date}", Date);
+    Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
+    Ret = TL::Replace(Ret, "{username}", Players[0].User.Name);
+    Ret = TL::Replace(Ret, "{map_name}", Map.MapInfo.Name);
+    Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
+    return Ret;
+ }
+
+ Void SaveReplay(CGhost Ghost, Boolean IsPartial) {
+    declare Text ReplayFolderName = RenderPathTemplate(ArchivistSettings.S_ReplayFolderTemplate, Ghost);
+    if (ArchivistSettings.S_SeparatePartialRuns) {
+        if (IsPartial) {
+            ReplayFolderName = ReplayFolderName ^ "/Partial";
+        } else {
+            ReplayFolderName = ReplayFolderName ^ "/Complete";
+        }
+    }
+    declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
     ReplayFileName = TL::Replace(ReplayFileName, ".", "");
-    declare CTaskResult Task = DataFileMgr.Replay_Save("PlayMap6Replays/"^ReplayFileName^".Replay.Gbx", Map, Ghost);
+    declare CTaskResult Task = DataFileMgr.Replay_Save("Archivist/"^ReplayFolderName^"/"^ReplayFileName^".Replay.Gbx", Map, Ghost);
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1115,7 +1162,7 @@
  }
 
  CampaignStruct::LibCampaignStruct_K_Map SetMapNewRecord(CSmPlayer _Player, CampaignStruct::LibCampaignStruct_K_Map _Map) {
-     declare CGhost Ghost = Ghost_RetrieveFromPlayer(_Player);
+     declare CGhost Ghost = Ghost_RetrieveFromPlayerWithValues(_Player);
      declare CampaignStruct::LibCampaignStruct_K_Map UpdatedMap = _Map;
      declare Task::K_Task TaskResult_NewRecord = Task::Create(ScoreMgr, ScoreMgr.Map_SetNewRecord_v2(
          MainUser::GetMainUserId(),
@@ -1175,27 +1222,29 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Add a ghost to the playground based on
 Void MB_AddGhost(CGhost Ghost) {
-    // todo: add ghost based on settings
+    // todo: add ghost based on settings, mb remove past ghosts
     GhostMgr.Ghost_Add(Ghost, True);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// save a partial replay based on user settings
 Void MB_SavePartialReplay(CGhost Ghost) {
-    // todo: test whether to save replay
-    SaveReplay(Ghost, "TestPartial");
+    if (ArchivistSettings.S_SaveReplays) {
+        SaveReplay(Ghost, True);
+    }
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Upload a ghost based on user settings
-Void MB_UploadGhost(CGhost Ghost) {
-    // todo: test whether to upload ghost
-    DataFileMgr.Ghost_Upload("http://localhost:8000/upload/ghost/MAP/12345?partial=True", Ghost, "OP_TOKEN: test123\nBLAH: 888");
+Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
+    AddDebugLog("Ghost.Id: " ^ Ghost.Id);
+    if (ArchivistSettings.S_UploadGhosts && ArchivistSettings.S_SaveGhosts) {
+        DataFileMgr.Ghost_Upload("http://localhost:8000/upload/ghost/"^Map.MapInfo.MapUid^"/"^Ghost.Result.Time^"?partial="^Partial, Ghost, OpAuthHeaders());
+    }
 }
 
-
 Void ProcessArchivistSetting(Text[] Msgs) {
-    ArchivistSettings = K_PluginSettings.fromjson(Msgs[1]);
+    ArchivistSettings.fromjson(Msgs[1]);
 }
 
 
@@ -1207,8 +1256,12 @@ Void ProcessIncoming(Text[] Msgs) {
     if (msgType == "ArchivistSettings") {
         ProcessArchivistSetting(Msgs);
         return;
+    } else if (msgType == "UpdateToken") {
+        AddDebugLog("Got Updated Token.");
+        Archivist_Openplanet_Token = Msgs[1];
+    } else {
+        AddDebugLog("Unhandled incoming netread msg: " ^ Msgs);
     }
-    AddDebugLog("Unhandled incoming netread msg: " ^ Msgs);
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1216,6 +1269,6 @@ Void ProcessIncoming(Text[] Msgs) {
 /// Note: an individual message is an array of text. usually the first entry is a key that identifies the msg type.
 Void ProcessIncomingFromMLHook(Text[] Msgs) {
     if (Msgs.count == 0) return;
-    AddDebugLog("Got MLHook msg: " ^ Msgs);
+    // AddDebugLog("Got MLHook msg (v2): " ^ Msgs);
     ProcessIncoming(Msgs);
 }

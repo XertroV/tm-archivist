@@ -1,6 +1,6 @@
 class LoadMapsTab : Tab {
     LoadMapsTab() {
-        super(Icons::FolderOpen + " Load Map(s)", false);
+        super(Icons::FolderOpen + " Load Map", false);
     }
 
     bool initialized = false;
@@ -12,15 +12,8 @@ class LoadMapsTab : Tab {
 
     void DrawInner() override {
         if (!initialized) InitializeSync();
-        auto pos = UI::GetCursorPos();
-        UI::AlignTextToFramePadding();
-        Heading("Load Map(s)", 0);
-        auto nextPos = UI::GetCursorPos();
-        UI::SetCursorPos(pos + vec2(UI::GetContentRegionMax().x - 100, 0));
-        if (UI::Button("Play Map")) {
-            startnew(CoroutineFunc(OnLoadMap));
-        }
-        UI::SetCursorPos(nextPos);
+        // UI::AlignTextToFramePadding();
+        Heading("Load Map", 0);
 
         UI::BeginTabBar("load maps method");
         if (UI::BeginTabItem("Local Maps")) {
@@ -39,7 +32,11 @@ class LoadMapsTab : Tab {
     }
 
     void OnLoadMap() {
+        ReturnToMenu(true);
         UpdateModeSettingsViaMLHook();
+        // LoadMapNow(tmxIdToUrl('90000'), "Trackmania/" + ArchivistModeScriptName);
+        LoadMapsNow(CurrentFolder.OnClickAddSelectedMaps(), "Trackmania/" + ArchivistModeScriptName);
+        // cast<CGameManiaPlanet>(GetApp()).ManiaPlanetScriptAPI.Dialog_CleanCache();
     }
 
 
@@ -74,6 +71,7 @@ class Folder {
     Folder@ Parent = null;
     string Name;
     bool[] selected;
+    int singleSelected = 0;
     string[] MapNames;
     int nbSelected = 0;
 
@@ -126,11 +124,21 @@ class Folder {
 
     // for use in folders
     void DrawMapSelector(int i) {
-        bool _curr = selected[i];
-        if (_curr != UI::Checkbox(MapNames[i], _curr)) {
-            selected[i] = !_curr;
-            nbSelected += _curr ? -1 : 1;
+        UI::PushID("play-" + i);
+        if (UI::Button("Play")) {
+            singleSelected = i;
+            startnew(CoroutineFunc(_LoadMaps.OnLoadMap));
         }
+        UI::SameLine();
+        UI::AlignTextToFramePadding();
+        UI::Text(MapNames[i]);
+
+        // bool _curr = selected[i];
+        // if (_curr != UI::Checkbox(MapNames[i], _curr)) {
+        //     selected[i] = !_curr;
+        //     nbSelected += _curr ? -1 : 1;
+        // }
+        UI::PopID();
     }
 
     DrawTreeInnerF@ treeCb;
@@ -154,13 +162,34 @@ class Folder {
     }
 
     string[]@ OnClickAddSelectedMaps() {
-        string[] ret;
-        for (uint i = 0; i < MapInfos.Length; i++) {
-            if (selected[i]) ret.InsertLast(MapInfos[i].MapUid);
-        }
-        return ret;
+        return {MapInfos[singleSelected].FileName};
+        // string[] ret;
+        // for (uint i = 0; i < MapInfos.Length; i++) {
+        //     if (selected[i]) {
+        //         ret.InsertLast(MapInfos[i].FileName); // MapInfos[i].FileName != "" ? MapInfos[i].FileName);
+        //         print(MapInfos[i].FileName);
+        //     }
+        // }
+        // return ret;
     }
 }
 
 funcdef void DrawTreeInnerF();
 funcdef void DrawOpenTreeNodeInnerF();
+
+
+
+/*
+
+		"<root>",
+			"<setting name=\"S_CampaignId\" value=\""^State.CampaignId^"\" type=\"integer\"/>",
+			"<setting name=\"S_CampaignType\" value=\""^Campaign.Type^"\" type=\"integer\"/>",
+			"<setting name=\"S_CampaignIsLive\" value=\""^CampaignIsLive^"\" type=\"boolean\"/>",
+			"<setting name=\"S_ClubCampaignTrophiesAreEnabled\" value=\""^ClubCampaignTrophiesAreEnabled^"\" type=\"boolean\"/>",
+			"<setting name=\"S_DecoImageUrl_Checkpoint\" value=\""^DecalUrl^"\" type=\"text\"/>",
+			"<setting name=\"S_DecoImageUrl_DecalSponsor4x1\" value=\""^Campaign.Club.DecoImageUrl_DecalSponsor4x1^"\" type=\"text\"/>",
+			"<setting name=\"S_DecoImageUrl_Screen16x9\" value=\""^Campaign.Club.DecoImageUrl_Screen16x9^"\" type=\"text\"/>",
+			"<setting name=\"S_DecoImageUrl_Screen8x1\" value=\""^Campaign.Club.DecoImageUrl_Screen8x1^"\" type=\"text\"/>",
+			"<setting name=\"S_DecoImageUrl_Screen16x1\" value=\""^Campaign.Club.DecoImageUrl_Screen16x1^"\" type=\"text\"/>",
+		"</root>"
+*/

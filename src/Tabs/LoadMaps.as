@@ -10,6 +10,12 @@ class LoadMapsTab : Tab {
         startnew(CoroutineFunc(LoadCurrentFolder));
     }
 
+    // call this after a map is loaded to populate settings and send the token to the game mode script
+    void InitializeGameMode() {
+        UpdateModeSettingsViaMLHook();
+        startnew(UpdateApiTokenViaMLHook);
+    }
+
     void DrawInner() override {
         if (!initialized) InitializeSync();
         // UI::AlignTextToFramePadding();
@@ -31,13 +37,15 @@ class LoadMapsTab : Tab {
         UI::EndTabBar();
     }
 
-    void OnLoadMap() {
+    void OnLoadLocalMap() {
         ReturnToMenu(true);
-        UpdateModeSettingsViaMLHook();
         // LoadMapNow(tmxIdToUrl('90000'), "Trackmania/" + ArchivistModeScriptName);
         LoadMapsNow(CurrentFolder.OnClickAddSelectedMaps(), "Trackmania/" + ArchivistModeScriptName);
         // cast<CGameManiaPlanet>(GetApp()).ManiaPlanetScriptAPI.Dialog_CleanCache();
+        yield();
+        InitializeGameMode();
     }
+
 
 
     void DrawLocalMapsBrowser() {
@@ -127,7 +135,7 @@ class Folder {
         UI::PushID("play-" + i);
         if (UI::Button("Play")) {
             singleSelected = i;
-            startnew(CoroutineFunc(_LoadMaps.OnLoadMap));
+            startnew(CoroutineFunc(_LoadMaps.OnLoadLocalMap));
         }
         UI::SameLine();
         UI::AlignTextToFramePadding();

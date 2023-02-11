@@ -827,6 +827,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player) {
     declare Ghost = Ghost_RetrieveFromPlayer(Player);
+    if (Ghost == Null || Ghost.Result == Null) return Ghost;
     Ghost.Result.NbRespawns = Player.Score.NbRespawnsRequested;
     return Ghost;
 }

@@ -1,13 +1,13 @@
 const string ARCHIVISTMONITOR_SCRIPT_TXT = """
 // Monitor for finishes in non-archivist modes, and for incoming messages from the game mode server in the Archivist game mode
 
-#Const C_PageUID "ArchivistMonitor"
+ #Const C_PageUID "ArchivistMonitor"
 
+ #Include "TextLib" as TL
 
 Void CheckIncomingFromGameServer() {
     declare netread Text[][] Archivist_ServerToClient for UI;
 }
-
 
 main () {
     while (True) {
@@ -15,4 +15,4 @@ main () {
         CheckIncomingFromGameServer();
     }
 }
-""";
+""".Replace('_"_"_"_', '"""');

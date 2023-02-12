@@ -10,13 +10,17 @@ import pathlib
 script_folder = Path("ml-scripts")
 output_folder = Path("src/scripts")
 
+def proc_line(line: str):
+    if line.startswith("#"):
+        line = " " + line  # prepend a space: does not trigger angelscript preprocessor + works in maniascript
+    return line
 
 def script_to_as_files(sf: Path):
     script_as_name = sf.stem + ".as"
     constant_name = sf.name.replace(".", "_").upper()
     lines = [f'const string {constant_name} = """']
-    lines.extend(sf.read_text().splitlines())
-    lines.append(f'""";')
+    lines.extend(map(proc_line, sf.read_text().replace('"""', '_"_"_"_').replace('/*CUT\n','').replace('CUT*/\n','').splitlines()))
+    lines.append(f'""".Replace(\'_"_"_"_\', \'"""\');')
     output_file = output_folder / script_as_name
     output_file.write_text("\n".join(lines))
     print(f"Processed: {sf} -- output: {output_file}")

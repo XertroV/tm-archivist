@@ -7,7 +7,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
  #Const CompatibleMapTypes "TrackMania\\TM_Race,TM_Race"
  #Const Version "2022-10-24"
- #Const ScriptName "Modes/TrackMania/TM_PlayMap_Local.Script.txt"
+ #Const ScriptName "Modes/TrackMania/TM_Archivist_Local.Script.txt"
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  // Libraries
@@ -64,10 +64,11 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
     Integer S_NbPbGhosts;
     Integer S_SaveAfterRaceTimeMs;
     Boolean S_KeepAllGhostsLoaded;
-    Boolean S_UploadGhosts;
+    // Boolean S_UploadGhosts;
     Boolean S_SaveGhosts;
     Boolean S_SaveReplays;
     Boolean S_SeparatePartialRuns;
+    Boolean S_SaveTruncatedRuns;
     Text S_ReplayNameTemplate;
     Text S_ReplayFolderTemplate;
  }
@@ -425,10 +426,12 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
                  }
                  Scores::UpdatePlayerPrevRace(Event.Player);
 
-                 // It appears that the only time we can get a segmented ghost is as the first request to get a ghost, possibly only on the frame we finish
-                 declare CGhost GhostTrunc = Ghost_RetrieveFromPlayerWithValues(Event.Player, True);
-                 ProcessCompleteTruncGhost(GhostTrunc);
-                //  SaveReplay(GhostTrunc, False, True);
+                 if (ArchivistSettings.S_SaveTruncatedRuns) {
+                     // It appears that the only time we can get a segmented ghost is as the first request to get a ghost, possibly only on the frame we finish?
+                     declare CGhost GhostTrunc = Ghost_RetrieveFromPlayerWithValues(Event.Player, True);
+                     ProcessCompleteTruncGhost(GhostTrunc);
+                 }
+
                  // we need to get the full ghost now so that we don't upload a truncated ghost to the leaderboards.
                  declare CGhost Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player);
                  ProcessCompleteGhost(Ghost);
@@ -442,6 +445,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
                  declare Integer RecordTime = GetRecordTime();
                  if (RecordTime < 0 || Event.RaceTime < GetRecordTime()) {
+                    // get a new ghost -- the ghost is processed as the 'personal best' ghost (so the name is changed, etc).
                      SetRecord(Ghost_RetrieveFromPlayerWithValues(Event.Player, False), !Server_IsAgainstReplay);
                      Map_Map = SetMapNewRecord(Event.Player, Map_Map);
                      NetShare::SetMap(Map_Map);
@@ -464,9 +468,10 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
             _Ghost.Result.Time = Event.Player.CurrentRaceTime;
             // _Ghost.Result.NbRespawns = Event.Player.Score.NbRespawnsRequested;
             if (_Ghost != Null) {
-                MB_AddGhost(_Ghost, True, False);
-                MB_SavePartialReplay(_Ghost);
-                MB_UploadGhost(_Ghost, True);
+                ProcessPartialGhost(_Ghost);
+                // MB_AddGhost(_Ghost, True, False);
+                // MB_SavePartialReplay(_Ghost);
+                // MB_UploadGhost(_Ghost, True);
             }
         }
      } else if (Event.Type == Events::C_Type_StartLine) {
@@ -486,7 +491,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
         Round_SetInitPos = True;
     }
  } else if (!Round_HasMoved) {
-     declare Vec3 dist = Round_InitPos - Players[0].Position;
+     declare Vec3 dist = Round_InitPos - MainPlayer.Position;
      if (Math::Length(dist) > 5.) {
         Round_HasMoved = True;
         AddDebugLog("Set Round_HasMoved to True. Distance: "^dist);
@@ -754,13 +759,13 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
                              declare Text RaceTime = TL::TimeToText(Ghost.Result.Time, True, True);
                              RaceTime = TL::Replace(RaceTime, ":", "'");
                              RaceTime = TL::Replace(RaceTime, ".", "''");
-                             declare Text ReplayFileName = Map.MapInfo.Name^"_"^Players[0].User.Name^"_"^FullDate^"("^RaceTime^")";
+                             declare Text ReplayFileName = Map.MapInfo.Name^"_"^AllPlayers[0].User.Name^"_"^FullDate^"("^RaceTime^")";
                              ReplayFileName = TL::Replace(ReplayFileName, ".", "");
                              declare CTaskResult Task = DataFileMgr.Replay_Save("My Replays/"^ReplayFileName^".Replay.Gbx", Map, Ghost);
                              if (Task != Null) {
                                  TaskId_SaveReplay = Task.Id;
                              }
-                             // ! cannot get segmented ghost later
+                             // ! cannot get segmented ghost later -- bust be before getting the normal replay
                             //  Ghost_Remove(Round_LastRaceGhostId);
                             //  GhostRecorder_Clear(Players[0]);
                             //  declare Ghost2 = Ghost_RetrieveFromPlayerWithValues(Players[0], True);
@@ -883,6 +888,11 @@ CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {
     declare Ghost = Ghost_RetrieveFromPlayer(Player, Truncate);
     if (Ghost == Null || Ghost.Result == Null) return Ghost;
     Ghost.Result.NbRespawns = Player.Score.NbRespawnsRequested;
+    if (Truncate) {
+        Ghost.Nickname = Ghost.Nickname ^ " (Segmented)";
+        // 1399154541 is 0x5365676d which is the bytes "Segm" as an int
+        Ghost.Result.Score = 1399154541;
+    }
     return Ghost;
 }
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player) {
@@ -1157,13 +1167,13 @@ Boolean IsPlaying() {
     Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
     Ret = TL::Replace(Ret, "{date}", Date);
     Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
-    Ret = TL::Replace(Ret, "{username}", Players[0].User.Name);
+    Ret = TL::Replace(Ret, "{username}", AllPlayers[0].User.Name);
     Ret = TL::Replace(Ret, "{map_name}", Map.MapInfo.Name);
     Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
     return Ret;
  }
 
- Void SaveReplay(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+ Text GhostTemplateFileNameNoSuffix(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
     declare Text ReplayFolderName = RenderPathTemplate(ArchivistSettings.S_ReplayFolderTemplate, Ghost);
     if (ArchivistSettings.S_SeparatePartialRuns) {
         if (IsPartial) {
@@ -1177,7 +1187,26 @@ Boolean IsPlaying() {
     }
     declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
     ReplayFileName = TL::Replace(ReplayFileName, ".", "");
-    ReplayFileName = "Archivist/"^ReplayFolderName^"/"^ReplayFileName^".Replay.Gbx";
+    ReplayFileName = "Archivist/"^ReplayFolderName^"/"^ReplayFileName;
+    return ReplayFileName;
+ }
+
+ Void SaveReplay(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+    // declare Text ReplayFolderName = RenderPathTemplate(ArchivistSettings.S_ReplayFolderTemplate, Ghost);
+    // if (ArchivistSettings.S_SeparatePartialRuns) {
+    //     if (IsPartial) {
+    //         ReplayFolderName = ReplayFolderName ^ "/Partial";
+    //     } else {
+    //         ReplayFolderName = ReplayFolderName ^ "/Complete";
+    //         if (IsSegmented) {
+    //             ReplayFolderName = ReplayFolderName ^ "/Segmented";
+    //         }
+    //     }
+    // }
+    // declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
+    // ReplayFileName = TL::Replace(ReplayFileName, ".", "");
+    // ReplayFileName = "Archivist/"^ReplayFolderName^"/"^ReplayFileName^".Replay.Gbx";
+    declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Replay.Gbx";
     AddDebugLog("Saving Replay. Partial: "^IsPartial^", Segmented: "^IsSegmented^", File: "^ReplayFileName);
     declare CTaskResult Task = DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
  }
@@ -1315,10 +1344,11 @@ Void MB_SavePartialReplay(CGhost Ghost) {
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Upload a ghost based on user settings
-Void MB_UploadGhost(CGhost Ghost, Boolean Partial, Boolean Segmented) {
-    AddDebugLog("Ghost.Id: " ^ Ghost.Id);
-    if (ArchivistSettings.S_UploadGhosts && ArchivistSettings.S_SaveGhosts) {
-        DataFileMgr.Ghost_Upload("http://localhost:8000/upload/ghost/"^Map.MapInfo.MapUid^"/"^Ghost.Result.Time^"?partial="^Partial^"&segmented="^Segmented, Ghost, OpAuthHeaders());
+Void MB_UploadGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+    if (ArchivistSettings.S_SaveGhosts) {
+        declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Ghost.Gbx";
+        AddDebugLog("Upload: Ghost.Id: " ^ Ghost.Id ^ " to file: " ^ ReplayFileName);
+        DataFileMgr.Ghost_Upload("http://localhost:29805/" ^ ReplayFileName, Ghost, OpAuthHeaders());
     }
 }
 Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
@@ -1329,6 +1359,8 @@ Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
 
 
 Void ProcessCompleteTruncGhost(CGhost Ghost) {
+    // if the ghost has no respawns, or respawns aren't set, don't save a segmented run b/c the normal replay will be enough.
+    if (Ghost.Result.NbRespawns <= 0) return;
     // todo setting for adding truncated ghosts
     MB_AddGhost(Ghost, False, True);
     MB_UploadGhost(Ghost, False, True);
@@ -1337,11 +1369,15 @@ Void ProcessCompleteTruncGhost(CGhost Ghost) {
 
 Void ProcessCompleteGhost(CGhost Ghost) {
     MB_AddGhost(Ghost, False, False);
-    MB_UploadGhost(Ghost, False);
+    MB_UploadGhost(Ghost, False, False);
     MB_SaveReplay(Ghost, False, False);
 }
 
-
+Void ProcessPartialGhost(CGhost Ghost) {
+    MB_AddGhost(Ghost, True, False);
+    MB_UploadGhost(Ghost, True, False);
+    MB_SavePartialReplay(Ghost);
+}
 
 
 

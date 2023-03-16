@@ -10,10 +10,11 @@ void UpdateModeSettingsViaMLHook() {
 
     // bool
     data["S_KeepAllGhostsLoaded"] = S_KeepAllGhostsLoaded;
-    data["S_UploadGhosts"] = S_UploadGhosts;
+    // data["S_UploadGhosts"] = S_UploadGhosts;
     data["S_SaveGhosts"] = S_SaveGhosts;
     data["S_SaveReplays"] = S_SaveReplays;
     data["S_SeparatePartialRuns"] = S_SeparatePartialRuns;
+    data["S_SaveTruncatedRuns"] = S_SaveTruncatedRuns;
 
     // string
     data["S_ReplayNameTemplate"] = S_ReplayNameTemplate;

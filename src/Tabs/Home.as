@@ -17,14 +17,15 @@ class HomeTab : Tab {
         AddSimpleTooltip("If you reset before X seconds have passed, a partial replay will not be saved.");
         S_KeepAllGhostsLoaded = UI::Checkbox("Keep *All* Ghosts Loaded (including Partial completions)", S_KeepAllGhostsLoaded);
 
-        SubHeading("Online");
-        DrawUploadGhostsCheckbox();
+        // SubHeading("Online");
+        // DrawUploadGhostsCheckbox();
 
         SubHeading("Files");
         UI::AlignTextToFramePadding();
-        UI::Text("Save Location:\\$ccc Trackmania/Replays/Archived/");
+        UI::Text("Save Location:\\$ccc Trackmania/Replays/Archivist/");
         DrawSaveGhostsAndOrReplaysCheckbox();
         DrawSeparatePartialRunsCheckbox();
+        DrawSegmentedRunsCheckbox();
 
         SubHeading("Name Templates");
         if (UI::CollapsingHeader("Available Variables")) {
@@ -57,7 +58,7 @@ class HomeTab : Tab {
 
         S_ReplayNameTemplate = UI::InputText("\\$4afFile Name Template", S_ReplayNameTemplate);
         UI::AlignTextToFramePadding();
-        UI::Text("Example: Archived/\\$fa4" + replayFolderName + "\\$z/" + subFolderName + "\\$4af" + RenderTemplateExample(S_ReplayNameTemplate) + "\\$z.Replay.gbx");
+        UI::Text("Example: Archivist/\\$fa4" + replayFolderName + "\\$z/" + subFolderName + "\\$4af" + RenderTemplateExample(S_ReplayNameTemplate) + "\\$z.Replay.gbx");
 
         if (!FileNameTemplatesOkay()) {
             UI::TextWrapped("\\$d81 Warning:\\$aaa missing 1+ suggested template vars: {map_name}, {duration}, and one of {date}, {date_time}, {timestamp}.");

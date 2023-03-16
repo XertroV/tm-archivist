@@ -38,15 +38,15 @@ class LoadMapsTab : Tab {
     }
 
     void OnLoadLocalMap() {
+        auto toLoad = CurrentFolder.OnClickAddSelectedMaps();
+        AddToRecentMaps(toLoad);
         ReturnToMenu(true);
         // LoadMapNow(tmxIdToUrl('90000'), "Trackmania/" + ArchivistModeScriptName);
-        LoadMapsNow(CurrentFolder.OnClickAddSelectedMaps(), "Trackmania/" + ArchivistModeScriptName);
+        LoadMapsNow(toLoad, "Trackmania/" + ArchivistModeScriptName);
         // cast<CGameManiaPlanet>(GetApp()).ManiaPlanetScriptAPI.Dialog_CleanCache();
         yield();
         InitializeGameMode();
     }
-
-
 
     void DrawLocalMapsBrowser() {
         if (CurrentFolder is null) {
@@ -57,7 +57,31 @@ class LoadMapsTab : Tab {
     }
 
     void DrawTMXLoadMaps() {
+        UI::AlignTextToFramePadding();
+        UI::Text("Track ID:");
+        UI::SameLine();
+        bool pressedEnter = false;
+        UI::SetNextItemWidth(100);
+        m_TMX = UI::InputText("##tmx-id", m_TMX, pressedEnter, UI::InputTextFlags::EnterReturnsTrue);
+        UI::SameLine();
+        if (UI::Button("Play Map##main-btn") || pressedEnter) {
+            m_URL = tmxIdToUrl(m_TMX);
+            if (m_TMX.StartsWith("http")) {
+                m_URL = m_TMX;
+            }
+            startnew(CoroutineFunc(OnLoadTmxMapNow));
+        }
+        UI::SameLine();
+        m_UseTmxMirror = UI::Checkbox("Use Mirror?", m_UseTmxMirror);
+        AddSimpleTooltip("Instead of downloading maps from TMX, download them from the CGF mirror.");
+    }
 
+    void OnLoadTmxMapNow() {
+        AddToRecentMaps({m_URL});
+        ReturnToMenu(true);
+        LoadMapNow(m_URL, "Trackmania/" + ArchivistModeScriptName);
+        yield();
+        InitializeGameMode();
     }
 
     void DrawCampaignLoadMaps() {

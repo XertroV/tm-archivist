@@ -1,0 +1,3 @@
+void AddToRecentMaps(string[]@ pathsOrUrls) {
+
+}

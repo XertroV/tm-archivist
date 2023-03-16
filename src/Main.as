@@ -197,13 +197,13 @@ void DrawMain() {
     //     UI::EndTabItem();
     // }
 
-    if (UI::BeginTabItem(Icons::FolderOpen + " Load Map")) {
-        UI::EndTabItem();
-    }
+    // if (UI::BeginTabItem(Icons::FolderOpen + " Load Map")) {
+    //     UI::EndTabItem();
+    // }
 
-    if (UI::BeginTabItem(Icons::History + " My Runs")) {
-        UI::EndTabItem();
-    }
+    // if (UI::BeginTabItem(Icons::History + " My Runs")) {
+    //     UI::EndTabItem();
+    // }
 
     UI::EndTabBar();
 }

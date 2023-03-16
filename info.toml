@@ -8,4 +8,5 @@ siteid   = 328
 [script]
 #__DEFINES__
 dependencies = ["MLHook", "NadeoServices"]
+optional_dependencies = ["HttpServer", "httpserver-dev"]
 # , "VehicleState"

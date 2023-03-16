@@ -61,6 +61,7 @@
 
  #Struct K_PluginSettings {
     Integer S_NbPbGhosts;
+    Integer S_NbRecentGhosts;
     Integer S_SaveAfterRaceTimeMs;
     Boolean S_KeepAllGhostsLoaded;
     // Boolean S_UploadGhosts;
@@ -70,6 +71,12 @@
     Boolean S_SaveTruncatedRuns;
     Text S_ReplayNameTemplate;
     Text S_ReplayFolderTemplate;
+ }
+
+ #Struct K_LoadedGhost {
+    Ident Id;
+    Ident InstId;
+    Integer Time;
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -428,7 +435,12 @@
                  if (ArchivistSettings.S_SaveTruncatedRuns) {
                      // It appears that the only time we can get a segmented ghost is as the first request to get a ghost, possibly only on the frame we finish?
                      declare CGhost GhostTrunc = Ghost_RetrieveFromPlayerWithValues(Event.Player, True);
-                     ProcessCompleteTruncGhost(GhostTrunc);
+                     // only keep a segmented ghost around if there were respawns
+                     if (GhostTrunc.Result.NbRespawns > 0) {
+                         ProcessCompleteTruncGhost(GhostTrunc);
+                     } else {
+                        DataFileMgr.Ghost_Release(GhostTrunc.Id);
+                     }
                  }
 
                  // we need to get the full ghost now so that we don't upload a truncated ghost to the leaderboards.
@@ -465,12 +477,8 @@
             // truncation never works with partial ghosts
             declare CGhost _Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player, False);
             _Ghost.Result.Time = Event.Player.CurrentRaceTime;
-            // _Ghost.Result.NbRespawns = Event.Player.Score.NbRespawnsRequested;
             if (_Ghost != Null) {
                 ProcessPartialGhost(_Ghost);
-                // MB_AddGhost(_Ghost, True, False);
-                // MB_SavePartialReplay(_Ghost);
-                // MB_UploadGhost(_Ghost, True);
             }
         }
      } else if (Event.Type == Events::C_Type_StartLine) {
@@ -663,7 +671,6 @@
           * but I'm not too sure, so just using this kinda hacky way to transfer the time onto the new ghost
           */
          declare Integer LastRaceTime = DataFileMgr.Ghosts[Round_LastRaceGhostId].Result.Time;
-        //  declare Integer NbRespawns = DataFileMgr.Ghosts[Round_LastRaceGhostId].Result.NbRespawns;
          declare CGhost Ghost = Ghost_RetrieveFromPlayerWithValues(Player);
          if (
              Ghost != Null &&
@@ -671,7 +678,6 @@
              Ghost.Result.Checkpoints[Ghost.Result.Checkpoints.count - 1] == LastRaceTime
          ) {
              Ghost.Result.Time = LastRaceTime;
-            //  Ghost.Result.NbRespawns = NbRespawns;
              DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
              Round_LastRaceGhostId = Ghost.Id;
          } else if (Ghost != Null) {
@@ -827,9 +833,9 @@
  // Release last race ghost
  if (Round_LastRaceGhostId != NullId) {
      if (DataFileMgr.Ghosts.existskey(Round_LastRaceGhostId)) {
-        GhostMgr.Ghost_Add(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
+        // GhostMgr.Ghost_Add(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
         // GhostMgr.Ghost_AddWaypointSynced(DataFileMgr.Ghosts[Round_LastRaceGhostId], True);
-        // DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
+        DataFileMgr.Ghost_Release(Round_LastRaceGhostId);
      }
      Round_LastRaceGhostId = NullId;
  }
@@ -866,6 +872,9 @@
  // Functions
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
+ declare K_LoadedGhost[] Archivist_PbGhosts;
+ declare K_LoadedGhost[] Archivist_RecentGhosts;
+//  declare K_LoadedGhost[] Archivist_PartialGhosts;
 
  Void AddDebugLog(Text msg) {
     if (!C_IsDebug) return;
@@ -1056,10 +1065,10 @@ Boolean IsPlaying() {
      declare Ident PlayMap_RecordGhostAddId for This;
      declare Ident PlayMap_RecordGhostAddId_CpSynced for This;
      if (PlayMap_RecordGhostAddId != NullId) {
-        //  GhostMgr.Ghost_Remove(PlayMap_RecordGhostAddId);
+         GhostMgr.Ghost_Remove(PlayMap_RecordGhostAddId);
      }
      if (PlayMap_RecordGhostAddId_CpSynced != NullId) {
-        //  GhostMgr.Ghost_Remove(PlayMap_RecordGhostAddId_CpSynced);
+         GhostMgr.Ghost_Remove(PlayMap_RecordGhostAddId_CpSynced);
      }
      PlayMap_RecordGhostAddId = NullId;
      PlayMap_RecordGhostAddId_CpSynced = NullId;
@@ -1167,7 +1176,7 @@ Boolean IsPlaying() {
     Ret = TL::Replace(Ret, "{date}", Date);
     Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
     Ret = TL::Replace(Ret, "{username}", AllPlayers[0].User.Name);
-    Ret = TL::Replace(Ret, "{map_name}", Map.MapInfo.Name);
+    Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(Map.MapInfo.Name));
     Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
     return Ret;
  }
@@ -1179,9 +1188,9 @@ Boolean IsPlaying() {
             ReplayFolderName = ReplayFolderName ^ "/Partial";
         } else {
             ReplayFolderName = ReplayFolderName ^ "/Complete";
-            if (IsSegmented) {
-                ReplayFolderName = ReplayFolderName ^ "/Segmented";
-            }
+        }
+        if (IsSegmented) {
+            ReplayFolderName = ReplayFolderName ^ "/Segmented";
         }
     }
     declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
@@ -1191,20 +1200,6 @@ Boolean IsPlaying() {
  }
 
  Void SaveReplay(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
-    // declare Text ReplayFolderName = RenderPathTemplate(ArchivistSettings.S_ReplayFolderTemplate, Ghost);
-    // if (ArchivistSettings.S_SeparatePartialRuns) {
-    //     if (IsPartial) {
-    //         ReplayFolderName = ReplayFolderName ^ "/Partial";
-    //     } else {
-    //         ReplayFolderName = ReplayFolderName ^ "/Complete";
-    //         if (IsSegmented) {
-    //             ReplayFolderName = ReplayFolderName ^ "/Segmented";
-    //         }
-    //     }
-    // }
-    // declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
-    // ReplayFileName = TL::Replace(ReplayFileName, ".", "");
-    // ReplayFileName = "Archivist/"^ReplayFolderName^"/"^ReplayFileName^".Replay.Gbx";
     declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Replay.Gbx";
     AddDebugLog("Saving Replay. Partial: "^IsPartial^", Segmented: "^IsSegmented^", File: "^ReplayFileName);
     declare CTaskResult Task = DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
@@ -1300,7 +1295,7 @@ Boolean IsPlaying() {
          GhostMgr.Ghost_Remove(_RecordGhost.GhostInstanceId);
      }
      if (_RecordGhost.Ghost != Null && _RecordGhost.Ghost.Id != NullId && DataFileMgr.Ghosts.existskey(_RecordGhost.Ghost.Id)) {
-        //  DataFileMgr.Ghost_Release(_RecordGhost.Ghost.Id);
+         DataFileMgr.Ghost_Release(_RecordGhost.Ghost.Id);
      }
 
      return K_RecordGhost {};
@@ -1321,10 +1316,86 @@ Boolean IsPlaying() {
  }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
-/// Add a ghost to the playground based on
+/// Check loaded ghosts against settings to
+Void CheckForGhostsToRemove() {
+    if (ArchivistSettings.S_KeepAllGhostsLoaded) return;
+    declare K_LoadedGhost[Ident] toRemove;
+    if (ArchivistSettings.S_NbPbGhosts < Archivist_PbGhosts.count) {
+        declare gi = Archivist_PbGhosts[Archivist_PbGhosts.count - 1];
+        toRemove[gi.Id] = gi;
+        Archivist_PbGhosts.removekey(Archivist_PbGhosts.count - 1);
+    }
+    if (ArchivistSettings.S_NbRecentGhosts < Archivist_RecentGhosts.count) {
+        declare gi = Archivist_RecentGhosts[Archivist_RecentGhosts.count - 1];
+        toRemove[gi.Id] = gi;
+        Archivist_RecentGhosts.removekey(Archivist_RecentGhosts.count - 1);
+    }
+    foreach (gi in toRemove) {
+        declare Boolean KeepLoaded = False;
+        foreach (gi2 in Archivist_PbGhosts) {
+            if (gi.InstId == gi2.InstId) {
+                KeepLoaded = True;
+                break;
+            }
+        }
+        foreach (gi2 in Archivist_RecentGhosts) {
+            if (gi.InstId == gi2.InstId) {
+                KeepLoaded = True;
+                break;
+            }
+        }
+
+        if (!KeepLoaded) {
+            // safe to remove if it isn't in either list anymore
+            GhostMgr.Ghost_Remove(gi.InstId);
+            if (DataFileMgr.Ghosts.existskey(gi.Id)) {
+                DataFileMgr.Ghost_Release(gi.Id);
+            }
+        }
+    }
+}
+
+Void AddPbGhost(K_LoadedGhost _GhostInfo) {
+    declare Integer insertAt = -1;
+    for (I, 0, Archivist_PbGhosts.count - 1) {
+        if (_GhostInfo.Time < Archivist_PbGhosts[I].Time) {
+            insertAt = I;
+            break;
+        }
+    }
+    if (insertAt == -1) {
+        Archivist_PbGhosts.add(_GhostInfo);
+    } else {
+        declare lastIx = Archivist_PbGhosts.count - 1;
+        Archivist_PbGhosts.add(Archivist_PbGhosts[lastIx]);
+        while (lastIx > insertAt) {
+            Archivist_PbGhosts[lastIx] = Archivist_PbGhosts[lastIx - 1];
+            lastIx -= 1;
+        }
+        Archivist_PbGhosts[insertAt] = _GhostInfo;
+    }
+}
+Void AddRecentGhost(K_LoadedGhost _GhostInfo) {
+    Archivist_RecentGhosts.addfirst(_GhostInfo);
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Add a ghost to the playground based on settings
 Void MB_AddGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+    if (!ArchivistSettings.S_KeepAllGhostsLoaded && ArchivistSettings.S_NbPbGhosts == 0) return;
     // todo: add ghost based on settings, mb remove past ghosts
-    GhostMgr.Ghost_Add(Ghost, True);
+    declare GhostInstanceId = GhostMgr.Ghost_Add(Ghost, True);
+    // ghost is now added
+    declare _GhostInfo = K_LoadedGhost {
+        Id = Ghost.Id,
+        InstId = GhostInstanceId,
+        Time = Ghost.Result.Time
+    };
+    if (!IsPartial && !IsSegmented) {
+        AddPbGhost(_GhostInfo);
+    }
+    AddRecentGhost(_GhostInfo);
+    CheckForGhostsToRemove();
 }
 
 
@@ -1347,35 +1418,46 @@ Void MB_UploadGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
     if (ArchivistSettings.S_SaveGhosts) {
         declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Ghost.Gbx";
         AddDebugLog("Upload: Ghost.Id: " ^ Ghost.Id ^ " to file: " ^ ReplayFileName);
-        DataFileMgr.Ghost_Upload("http://localhost:29805/" ^ ReplayFileName, Ghost, OpAuthHeaders());
+        DataFileMgr.Ghost_Upload("http://localhost:29806/" ^ ReplayFileName, Ghost, OpAuthHeaders());
     }
 }
 Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
     MB_UploadGhost(Ghost, Partial, False);
 }
 
+declare Integer _CountNbGhostsTotal;
 
+Void PostProcessGhost(CGhost Ghost, Boolean Partial, Boolean Trunc) {
+    _CountNbGhostsTotal += 1;
+    Ghost.Nickname ^= " #" ^ _CountNbGhostsTotal;
+    if (Partial) {
+        Ghost.Nickname ^= " (Partial)";
+    }
+}
 
 
 Void ProcessCompleteTruncGhost(CGhost Ghost) {
     // if the ghost has no respawns, or respawns aren't set, don't save a segmented run b/c the normal replay will be enough.
     if (Ghost.Result.NbRespawns <= 0) return;
     // todo setting for adding truncated ghosts
-    MB_AddGhost(Ghost, False, True);
     MB_UploadGhost(Ghost, False, True);
     MB_SaveReplay(Ghost, False, True);
+    MB_AddGhost(Ghost, False, True);
+    PostProcessGhost(Ghost, False, True);
 }
 
 Void ProcessCompleteGhost(CGhost Ghost) {
-    MB_AddGhost(Ghost, False, False);
     MB_UploadGhost(Ghost, False, False);
     MB_SaveReplay(Ghost, False, False);
+    MB_AddGhost(Ghost, False, False);
+    PostProcessGhost(Ghost, False, False);
 }
 
 Void ProcessPartialGhost(CGhost Ghost) {
-    MB_AddGhost(Ghost, True, False);
     MB_UploadGhost(Ghost, True, False);
     MB_SavePartialReplay(Ghost);
+    MB_AddGhost(Ghost, True, False);
+    PostProcessGhost(Ghost, True, False);
 }
 
 

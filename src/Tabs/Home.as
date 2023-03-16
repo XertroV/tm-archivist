@@ -11,9 +11,11 @@ class HomeTab : Tab {
         UI::BeginDisabled(S_KeepAllGhostsLoaded);
         S_NbPbGhosts = Math::Max(0, UI::SliderInt("# PB Ghosts", S_NbPbGhosts, 0, 10));
         AddSimpleTooltip("The number of PB ghosts to keep loaded.");
+        S_NbRecentGhosts = Math::Max(0, UI::SliderInt("# Recent Ghosts", S_NbRecentGhosts, 0, 20));
+        AddSimpleTooltip("The number of most recent ghosts to keep loaded. Includes partial ghosts.");
         UI::EndDisabled();
 
-        S_SaveAfterRaceTime = Math::Max(0, UI::InputInt("Save ghosts only after X seconds", S_SaveAfterRaceTime, 5));
+        S_SaveAfterRaceTime = Math::Max(0, UI::InputInt("Save ghosts only after X seconds", S_SaveAfterRaceTime, 1));
         AddSimpleTooltip("If you reset before X seconds have passed, a partial replay will not be saved.");
         S_KeepAllGhostsLoaded = UI::Checkbox("Keep *All* Ghosts Loaded (including Partial completions)", S_KeepAllGhostsLoaded);
 

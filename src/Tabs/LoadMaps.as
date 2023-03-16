@@ -14,6 +14,9 @@ class LoadMapsTab : Tab {
     void InitializeGameMode() {
         UpdateModeSettingsViaMLHook();
         startnew(UpdateApiTokenViaMLHook);
+        // only need the http server if ghosts are enabled.
+        if (S_SaveGhosts)
+            StartHttpServer();
     }
 
     void DrawInner() override {

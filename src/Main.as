@@ -24,6 +24,7 @@ void OnDisabled() { _Unload(); }
 void OnDestroyed() { _Unload(); }
 void _Unload() {
     LocalStats::Save();
+    if (server !is null) server.Shutdown();
 }
 
 const string ArchivistModeScriptName = "TM_Archivist_" + Time::Now + "_Local";

@@ -8,6 +8,9 @@ LogLevel S_LogLevel = LogLevel::Warning;
 uint S_NbPbGhosts = 5;
 
 [Setting hidden]
+uint S_NbRecentGhosts = 5;
+
+[Setting hidden]
 bool S_KeepAllGhostsLoaded = false;
 
 [Setting hidden]

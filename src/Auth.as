@@ -38,10 +38,11 @@ void CheckTokenUpdate() {
 void OnGotNewToken() {
     log_info("Updated Openplanet Auth Token");
     startnew(UpdateApiTokenViaMLHook);
-    API::Archivist::RegisterToken();
+    // API::Archivist::RegisterToken();
 }
 
+// just return empty str b/c we don't use it
 const string CurrentOpenplanetToken() {
-    while (g_opAuthToken == "") yield();
+    // while (g_opAuthToken == "") yield();
     return g_opAuthToken;
 }

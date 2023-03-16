@@ -6,6 +6,7 @@ void UpdateModeSettingsViaMLHook() {
     auto data = Json::Object();
     // int
     data["S_NbPbGhosts"] = S_NbPbGhosts;
+    data["S_NbRecentGhosts"] = S_NbRecentGhosts;
     data["S_SaveAfterRaceTimeMs"] = S_SaveAfterRaceTime * 1000;
 
     // bool

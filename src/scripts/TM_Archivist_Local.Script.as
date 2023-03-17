@@ -30,6 +30,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  #Include "Libs/Nadeo/TMNext/TrackMania/Structures/CampaignStruct.Script.txt" as CampaignStruct
  #Include "Libs/Nadeo/TMNext/TrackMania/Modes/Constants.Script.txt" as ModeConst
  #Include "Libs/Nadeo/MenuLibs/Common/Components/Tools.Script.txt" as Tools
+ #Include "Libs/Nadeo/CommonLibs/Common/Http.Script.txt" as Http
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  // Settings
@@ -78,6 +79,15 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
     Ident Id;
     Ident InstId;
     Integer Time;
+ }
+
+ #Struct K_RunResult {
+    Text MapUid;
+    Boolean Partial;
+    Integer Duration;
+    Integer NbRespawns;
+    Integer NbCheckpoints;
+    Integer Now;
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -212,6 +222,10 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  foreach (Player in AllPlayers) {
      StateMgr::InitializePlayer(Player);
  }
+
+ // the report run feature can get like clogged up if we don't clear this -- basically Now can be less than the last time a request was made, in the last server that was running.
+ declare Integer[Text] LibCommonHttp_CooldownList for System = [];
+ LibCommonHttp_CooldownList.clear();
 
  declare netread Text[][] MLHook_NetQueue_Archivist for Teams[0];
 
@@ -469,6 +483,8 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
                      Round_NewRecord = True;
                  }
 
+                 ReportRunResult(Event.Player, False);
+
                  MB_StopRound();
              }
              if (Event.IsEndLap) {
@@ -485,8 +501,11 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
             if (_Ghost != Null) {
                 ProcessPartialGhost(_Ghost);
             }
-            RefreshRecordsUI();
         }
+        if (Event.Player != Null) {
+            ReportRunResult(Event.Player, True);
+        }
+        RefreshRecordsUI();
      } else if (Event.Type == Events::C_Type_StartLine) {
         Round_SetInitPos = True;
         Round_HasMoved = False;
@@ -635,6 +654,9 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
  ***Match_EndRound***
  ***
+
+ CheckClearTaskResults();
+
  //Wait for the end of the player race outro
  declare Boolean OutroFinished = False;
  declare Boolean SkipEndRaceMenu = False;
@@ -879,7 +901,10 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  declare K_LoadedGhost[] Archivist_PbGhosts;
  declare K_LoadedGhost[] Archivist_RecentGhosts;
 //  declare K_LoadedGhost[] Archivist_PartialGhosts;
+declare CTaskResult[] A_PendingWebTasks;
+declare Http::K_Request[] A_PendingHttpTasks;
 
+ // for use with Beu's debug script
  Void AddDebugLog(Text msg) {
     if (!C_IsDebug) return;
     declare netwrite Text Net_DebugMode_Logs for Teams[0];
@@ -917,6 +942,25 @@ CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {
 }
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player) {
     return Ghost_RetrieveFromPlayerWithValues(Player, False);
+}
+
+
+Void ReportRunResult(CSmPlayer Player, Boolean Partial) {
+    declare result = K_RunResult {
+        MapUid = Map.MapInfo.MapUid,
+        Partial = Partial,
+        Duration = Player.CurrentRaceTime,
+        NbRespawns = Player.Score.NbRespawnsRequested,
+        NbCheckpoints = Player.RaceWaypointTimes.count,
+        Now = Now
+    };
+    // AddDebugLog("Reporting: " ^ result);
+    declare Req = Http::Update(Http::CreatePost("http://localhost:29806/report_result", result.tojson(), ["Asdf" => "Blah"]));
+    // AddDebugLog("Got request: " ^ Req);
+    A_PendingHttpTasks.add(Req);
+    if (Req.IsWaitingSlot) {
+        AddDebugLog("http request delayed due to saturated...");
+    }
 }
 
 
@@ -1183,13 +1227,13 @@ Boolean IsPlaying() {
     declare CLDTParts = TL::Split(" ", CLDT);
     declare Date = TL::Replace(CLDTParts[0], "/", "-");
     declare Time = TL::Replace(CLDTParts[1], ":", "-");
-    declare MapName = TL::Replace(Map.MapInfo.Name, "#", "");
+    declare CleanMapName = TL::Replace(Map.MapInfo.Name, "#", "");
     declare Ret = TL::Replace(Template, "{map_uid}", Map.MapInfo.MapUid);
     Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
     Ret = TL::Replace(Ret, "{date}", Date);
     Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
     Ret = TL::Replace(Ret, "{username}", AllPlayers[0].User.Name);
-    Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(MapName));
+    Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(CleanMapName));
     Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
     return Ret;
  }
@@ -1216,6 +1260,7 @@ Boolean IsPlaying() {
     declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Replay.Gbx";
     AddDebugLog("Saving Replay. Partial: "^IsPartial^", Segmented: "^IsSegmented^", File: "^ReplayFileName);
     declare CTaskResult Task = DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
+    A_PendingWebTasks.add(Task);
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1424,7 +1469,6 @@ Void MB_SavePartialReplay(CGhost Ghost) {
     MB_SaveReplay(Ghost, True, False);
 }
 
-declare CTaskResult[] A_PendingWebTasks;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Upload a ghost based on user settings
@@ -1512,17 +1556,27 @@ Void CheckClearTaskResults() {
     declare CTaskResult[] ToRemove;
     foreach (Task in A_PendingWebTasks) {
         if (!Task.IsProcessing) {
-            if (Task.HasSucceeded) {
-                UIModules_EndRaceMenu::SetReplaySaveStatus(UIModules_EndRaceMenu::C_ReplaySaveStatus_Success);
-            } else {
-                UIModules_EndRaceMenu::SetReplaySaveStatus(UIModules_EndRaceMenu::C_ReplaySaveStatus_Fail);
-            }
             DataFileMgr.TaskResult_Release(Task.Id);
             ToRemove.add(Task);
         }
     }
     foreach (Task in ToRemove) {
         A_PendingWebTasks.remove(Task);
+        AddDebugLog("Cleared DFM pending task");
+    }
+
+    declare Integer[] HttpToRem;
+    foreach (Ix => Req in A_PendingHttpTasks) {
+        A_PendingHttpTasks[Ix] = Http::Update(Req);
+        if (A_PendingHttpTasks[Ix].IsDestroyed) {
+            // Ix is in reverse order (largest to smallest)
+            HttpToRem.addfirst(Ix);
+        }
+    }
+    // Ix is in reverse order (largest to smallest)
+    foreach (Ix in HttpToRem) {
+        A_PendingHttpTasks.removekey(Ix);
+        AddDebugLog("Cleared Http Request with Ix: " ^ Ix);
     }
 }
 """.Replace('_"_"_"_', '"""');

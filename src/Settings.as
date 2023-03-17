@@ -1,5 +1,5 @@
 [Setting hidden]
-bool S_AboutTabOpen = true;
+bool S_AboutTabOpen_1 = true;
 
 [Setting]
 LogLevel S_LogLevel = LogLevel::Warning;

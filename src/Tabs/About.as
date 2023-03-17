@@ -5,17 +5,27 @@ class AboutTab : Tab {
     }
 
     void OnCloseTab() override {
-        S_AboutTabOpen = false;
+        S_AboutTabOpen_1 = false;
     }
 
     bool BeginTabItem() override {
-        if (!S_AboutTabOpen) return false;
+        if (!S_AboutTabOpen_1) return false;
         return Tab::BeginTabItem();
     }
 
     void DrawInner() override {
         UI::Markdown("""
  # Welcome
+
+ ## Updates!
+
+ The rest of this tab has updated, so read it too.
+
+ - No online component anymore
+ - Uploading ghosts works and is entirely local. note that there have been some bugs with maps with funky names, so test out ghost saving etc.
+ - ghost management sliders work now (pb / recent ghosts)
+ - segmented runs behind a setting (compatible with saving ghosts)
+ - load maps from TMX or campaign
 
  ## Usage
 

@@ -158,7 +158,7 @@ void DrawToolbar() {
         }
 
         if (UI::BeginMenu("Help")) {
-            if (UI::MenuItem("Show About Tab", "", S_AboutTabOpen)) S_AboutTabOpen = !S_AboutTabOpen;
+            if (UI::MenuItem("Show About Tab", "", S_AboutTabOpen_1)) S_AboutTabOpen_1 = !S_AboutTabOpen_1;
             UI::EndMenu();
         }
         UI::EndMenuBar();
@@ -194,7 +194,7 @@ void DrawMain() {
     }
 
     // UI::PushStyleColor(UI::Col::TabActive)
-    // if (S_AboutTabOpen && UI::BeginTabItem(Icons::QuestionCircle + " About", S_AboutTabOpen)) {
+    // if (S_AboutTabOpen_1 && UI::BeginTabItem(Icons::QuestionCircle + " About", S_AboutTabOpen_1)) {
     //     UI::EndTabItem();
     // }
 

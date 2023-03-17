@@ -9,16 +9,34 @@ HttpServer@ server = null;
 void StartHttpServer() {
     if (server !is null) return;
     @server = HttpServer(HOSTNAME, PORT);
-    @server.RequestHandler = HandleGhostUpload;
+    @server.RequestHandler = RouteRequests;
     server.StartServer();
 }
 
 /* Request handler -- saving ghosts */
 
-HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
-    if (type != "POST") return HttpResponse(405, "Must be a POST request.");
+HttpResponse@ RouteRequests(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
     log_info("Route: " + route);
     log_info("Data length: " + data.Length);
+    if (route == '/report_result') return HandleReportResult(type, route, headers, data);
+    return HandleGhostUpload(type, route, headers, data);
+}
+
+HttpResponse@ HandleReportResult(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
+    if (type != "POST") return HttpResponse(405, "Must be a POST request.");
+    log_info("Data: " + data);
+    try {
+        // See K_RunResult in TM_Archivist_Local.Script.txt
+        auto report = Json::Parse(data);
+
+    } catch {
+        log_warn("Exception processing report result: " + getExceptionInfo());
+    }
+    return HttpResponse(200, "Ta");
+}
+
+HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
+    if (type != "POST") return HttpResponse(405, "Must be a POST request.");
     if (!route.ToLower().EndsWith(".ghost.gbx")) {
         return HttpResponse(404);
     }

@@ -47,6 +47,7 @@ class Tab {
             }
         }
     }
+    int ExtraFlags = UI::TabItemFlags::None;
 
     void OnCloseTab() {
         mainTabs.RemoveAt(mainTabs.FindByRef(this));
@@ -54,9 +55,9 @@ class Tab {
 
     bool BeginTabItem() {
         if (canCloseTab) {
-            return UI::BeginTabItem(tabName, TabIsOpen, TabFlags);
+            return UI::BeginTabItem(tabName, TabIsOpen, TabFlags | ExtraFlags);
         }
-        return UI::BeginTabItem(tabName, TabFlags);
+        return UI::BeginTabItem(tabName, TabFlags | ExtraFlags);
     }
 
     void DrawTab() {

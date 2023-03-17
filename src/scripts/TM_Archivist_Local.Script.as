@@ -403,6 +403,8 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
     }
  }
 
+ CheckClearTaskResults();
+
  // Manage race events
  declare RacePendingEvents = Race::GetPendingEvents();
  foreach (Event in RacePendingEvents) {
@@ -1422,6 +1424,7 @@ Void MB_SavePartialReplay(CGhost Ghost) {
     MB_SaveReplay(Ghost, True, False);
 }
 
+declare CTaskResult[] A_PendingWebTasks;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 /// Upload a ghost based on user settings
@@ -1429,7 +1432,8 @@ Void MB_UploadGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
     if (ArchivistSettings.S_SaveGhosts) {
         declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Ghost.Gbx";
         AddDebugLog("Upload: Ghost.Id: " ^ Ghost.Id ^ " to file: " ^ ReplayFileName);
-        DataFileMgr.Ghost_Upload("http://localhost:29806/" ^ ReplayFileName, Ghost, OpAuthHeaders());
+        declare UploadTask = DataFileMgr.Ghost_Upload("http://localhost:29806/" ^ ReplayFileName, Ghost, OpAuthHeaders());
+        A_PendingWebTasks.add(UploadTask);
     }
 }
 Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
@@ -1501,5 +1505,24 @@ Void ProcessIncomingFromMLHook(Text[] Msgs) {
     if (Msgs.count == 0) return;
     // AddDebugLog("Got MLHook msg (v2): " ^ Msgs);
     ProcessIncoming(Msgs);
+}
+
+
+Void CheckClearTaskResults() {
+    declare CTaskResult[] ToRemove;
+    foreach (Task in A_PendingWebTasks) {
+        if (!Task.IsProcessing) {
+            if (Task.HasSucceeded) {
+                UIModules_EndRaceMenu::SetReplaySaveStatus(UIModules_EndRaceMenu::C_ReplaySaveStatus_Success);
+            } else {
+                UIModules_EndRaceMenu::SetReplaySaveStatus(UIModules_EndRaceMenu::C_ReplaySaveStatus_Fail);
+            }
+            DataFileMgr.TaskResult_Release(Task.Id);
+            ToRemove.add(Task);
+        }
+    }
+    foreach (Task in ToRemove) {
+        A_PendingWebTasks.remove(Task);
+    }
 }
 """.Replace('_"_"_"_', '"""');

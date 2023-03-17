@@ -385,6 +385,8 @@
 
  StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
  RaceStateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+
+ RefreshRecordsUI();
  ***
 
  ***Match_PlayLoop***
@@ -480,6 +482,7 @@
             if (_Ghost != Null) {
                 ProcessPartialGhost(_Ghost);
             }
+            RefreshRecordsUI();
         }
      } else if (Event.Type == Events::C_Type_StartLine) {
         Round_SetInitPos = True;
@@ -889,6 +892,9 @@ Void MsgToMLHook(Text[] msg) {
     Archivist_MsgToAngelscript_Serial = Archivist_MsgToAngelscript.count;
 }
 
+Void RefreshRecordsUI() {
+    UIModules_Record::ForceMapUpdate();
+}
 
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {
     declare Ghost = Ghost_RetrieveFromPlayer(Player, Truncate);

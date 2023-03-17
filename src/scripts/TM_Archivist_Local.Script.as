@@ -386,6 +386,8 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
  StateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
  RaceStateMgr::ForcePlayersStates([StateMgr::C_State_Playing]);
+
+ RefreshRecordsUI();
  ***
 
  ***Match_PlayLoop***
@@ -481,6 +483,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
             if (_Ghost != Null) {
                 ProcessPartialGhost(_Ghost);
             }
+            RefreshRecordsUI();
         }
      } else if (Event.Type == Events::C_Type_StartLine) {
         Round_SetInitPos = True;
@@ -890,6 +893,9 @@ Void MsgToMLHook(Text[] msg) {
     Archivist_MsgToAngelscript_Serial = Archivist_MsgToAngelscript.count;
 }
 
+Void RefreshRecordsUI() {
+    UIModules_Record::ForceMapUpdate();
+}
 
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {
     declare Ghost = Ghost_RetrieveFromPlayer(Player, Truncate);

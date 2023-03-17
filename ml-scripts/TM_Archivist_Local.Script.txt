@@ -851,12 +851,10 @@
  Server_ReplayGhostInstanceIds = [];
  foreach (GhostId in Server_ReplayGhostIds) {
      if (DataFileMgr.Ghosts.existskey(GhostId)) {
-        //  DataFileMgr.Ghost_Release(GhostId);
+         DataFileMgr.Ghost_Release(GhostId);
      }
  }
  Server_ReplayGhostIds = [];
-//  GhostRecorder_SetEnabled(Players[0], False);
-//  GhostRecorder_Clear(Players[0]);
  ***
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1171,12 +1169,13 @@ Boolean IsPlaying() {
     declare CLDTParts = TL::Split(" ", CLDT);
     declare Date = TL::Replace(CLDTParts[0], "/", "-");
     declare Time = TL::Replace(CLDTParts[1], ":", "-");
+    declare MapName = TL::Replace(Map.MapInfo.Name, "#", "");
     declare Ret = TL::Replace(Template, "{map_uid}", Map.MapInfo.MapUid);
     Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
     Ret = TL::Replace(Ret, "{date}", Date);
     Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
     Ret = TL::Replace(Ret, "{username}", AllPlayers[0].User.Name);
-    Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(Map.MapInfo.Name));
+    Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(MapName));
     Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
     return Ret;
  }
@@ -1281,7 +1280,7 @@ Boolean IsPlaying() {
          TaskResult_NewRecord = Task::Destroy(TaskResult_NewRecord);
      }
 
-    //  if (Ghost != Null) DataFileMgr.Ghost_Release(Ghost.Id);
+     if (Ghost != Null) DataFileMgr.Ghost_Release(Ghost.Id);
 
      return UpdatedMap;
  }

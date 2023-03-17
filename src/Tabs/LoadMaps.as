@@ -87,8 +87,34 @@ class LoadMapsTab : Tab {
         InitializeGameMode();
     }
 
+    string campaignMapFilePath;
     void DrawCampaignLoadMaps() {
+        auto app = GetApp();
+        if (app.OfficialCampaigns.Length < 1) {
+            UI::Text("Campaign not found :(. Try loading via TMX.");
+            return;
+        }
+        auto campaign = app.OfficialCampaigns[0];
+        auto maps = campaign.MapGroups[0].MapInfos;
+        for (uint i = 0; i < maps.Length; i++) {
+            auto item = maps[i];
+            UI::PushID(item);
+            if (UI::Button("Play")) {
+                campaignMapFilePath = item.FileName;
+                startnew(CoroutineFunc(LoadCampaignMap));
+            }
+            UI::SameLine();
+            UI::Text(item.Name);
+            UI::PopID();
+        }
+    }
 
+    void LoadCampaignMap() {
+        AddToRecentMaps({campaignMapFilePath});
+        ReturnToMenu(true);
+        LoadMapNow(campaignMapFilePath, "Trackmania/" + ArchivistModeScriptName);
+        yield();
+        InitializeGameMode();
     }
 
     Folder@ CurrentFolder = null;

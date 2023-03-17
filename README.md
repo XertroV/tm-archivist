@@ -1,5 +1,8 @@
 # Archivist
 
+todo:
+- manage http task results and clear them
+
 License: Public Domain
 
 Authors: XertroV

@@ -893,8 +893,13 @@ Void MsgToMLHook(Text[] msg) {
     Archivist_MsgToAngelscript_Serial = Archivist_MsgToAngelscript.count;
 }
 
+declare Integer LastRefreshRecords;
+
 Void RefreshRecordsUI() {
-    UIModules_Record::ForceMapUpdate();
+    if (Now > LastRefreshRecords + 30000 || LastRefreshRecords == 0) {
+        LastRefreshRecords = Now;
+        UIModules_Record::ForceMapUpdate();
+    }
 }
 
 CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {

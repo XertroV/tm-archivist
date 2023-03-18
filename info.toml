@@ -9,3 +9,6 @@ siteid   = 328
 #__DEFINES__
 dependencies = ["MLHook", "NadeoServices"]
 # , "VehicleState"
+module = "Archivist"
+exports = ["Exports/ArchivistFunctions.as"]
+shared_exports = ["Exports/ArchivistShared.as"]

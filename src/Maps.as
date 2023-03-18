@@ -1,3 +1,7 @@
+void LoadMapNowInArchivist(const string &in url) {
+    LoadMapNow(url, "Trackmania/" + ArchivistModeScriptName);
+}
+
 void LoadMapNow(const string &in url, const string &in mode = "", const string &in settingsXml = "") {
     if (!Permissions::PlayLocalMap()) {
         NotifyError("Refusing to load map because you lack the necessary permissions. Standard or Club access required");

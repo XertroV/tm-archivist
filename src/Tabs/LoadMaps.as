@@ -35,10 +35,12 @@ class LoadMapsTab : Tab {
             DrawLocalMapsBrowser();
             UI::EndTabItem();
         }
-        if (UI::BeginTabItem("From TMX")) {
+        if (UI::BeginTabItem("From TMX / URL / UID")) {
             DrawTMXLoadMaps();
             UI::Separator();
             DrawURLLoadMap();
+            UI::Separator();
+            DrawUIDLoadMap();
             UI::EndTabItem();
         }
         if (UI::BeginTabItem("Campaign")) {
@@ -56,8 +58,8 @@ class LoadMapsTab : Tab {
         auto toLoad = CurrentFolder.OnClickAddSelectedMaps();
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(toLoad[0]));
         ReturnToMenu(true);
-        // LoadMapNow(tmxIdToUrl('90000'), "Trackmania/" + ArchivistModeScriptName);
-        LoadMapNow(toLoad[0], "Trackmania/" + ArchivistModeScriptName);
+        // LoadMapNowInArchivist(tmxIdToUrl('90000'));
+        LoadMapNowInArchivist(toLoad[0]);
         // cast<CGameManiaPlanet>(GetApp()).ManiaPlanetScriptAPI.Dialog_CleanCache();
         yield();
         InitializeGameMode();
@@ -104,10 +106,26 @@ class LoadMapsTab : Tab {
         }
     }
 
+    void DrawUIDLoadMap() {
+        UI::BeginDisabled(currMapDeetsLoading);
+        UI::AlignTextToFramePadding();
+        UI::Text("UID:");
+        UI::SameLine();
+        bool pressedEnter = false;
+        UI::SetNextItemWidth(250);
+        m_UID = UI::InputText("##uid-input", m_UID, pressedEnter, UI::InputTextFlags::EnterReturnsTrue);
+        UI::SameLine();
+        if (UI::Button("Play Map##uid-btn") || pressedEnter) {
+            loadCurrentUid = m_UID;
+            startnew(CoroutineFunc(OnLoadUidMapNow));
+        }
+        UI::EndDisabled();
+    }
+
     void OnLoadTmxMapNow() {
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodTmx(m_URL, m_TMX));
         ReturnToMenu(true);
-        LoadMapNow(m_URL, "Trackmania/" + ArchivistModeScriptName);
+        LoadMapNowInArchivist(m_URL);
         yield();
         InitializeGameMode();
     }
@@ -115,9 +133,17 @@ class LoadMapsTab : Tab {
     void OnLoadUrlMapNow() {
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(m_URL));
         ReturnToMenu(true);
-        LoadMapNow(m_URL, "Trackmania/" + ArchivistModeScriptName);
+        LoadMapNowInArchivist(m_URL);
         yield();
         InitializeGameMode();
+    }
+
+    void OnLoadUidMapNow() {
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(m_UID));
+        loadCurrentUid = m_UID;
+        ReturnToMenu(false);
+        GetMapDetailsFromUid();
+        LoadCurrentMap();
     }
 
     string campaignMapFilePath;
@@ -155,7 +181,7 @@ class LoadMapsTab : Tab {
     void LoadCampaignMap() {
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(campaignMapUid));
         ReturnToMenu(true);
-        LoadMapNow(campaignMapFilePath, "Trackmania/" + ArchivistModeScriptName);
+        LoadMapNowInArchivist(campaignMapFilePath);
         yield();
         InitializeGameMode();
     }
@@ -176,7 +202,7 @@ class LoadMapsTab : Tab {
             loadCurrentUid = mi.MapUid;
             currMapDeetsLoading = true;
             loadCurrentFileName = "";
-            startnew(CoroutineFunc(GetCurrMapDetails));
+            startnew(CoroutineFunc(GetMapDetailsFromUid));
         }
         UI::Text(ColoredString(StripNonColorFormatCodes(mi.Name)));
         if (currMapDeetsLoading) {
@@ -189,19 +215,20 @@ class LoadMapsTab : Tab {
         }
     }
 
-    void GetCurrMapDetails() {
+    void GetMapDetailsFromUid() {
         // todo: handle not found case
         currMapDeetsLoading = true;
         loadCurrentFileName = "";
         auto _mi = GetMapFromUid(loadCurrentUid);
-        loadCurrentFileName = _mi.FileUrl;
+        if (_mi !is null)
+            loadCurrentFileName = _mi.FileUrl;
         currMapDeetsLoading = false;
     }
 
     void LoadCurrentMap() {
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(loadCurrentUid));
         ReturnToMenu(true);
-        LoadMapNow(loadCurrentFileName, "Trackmania/" + ArchivistModeScriptName);
+        LoadMapNowInArchivist(loadCurrentFileName);
         yield();
         InitializeGameMode();
     }

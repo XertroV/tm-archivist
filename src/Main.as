@@ -154,6 +154,7 @@ void RenderMenuMain() {
 #endif
 
 string m_URL;
+string m_UID;
 string m_TMX;
 bool m_UseTmxMirror = false;
 
@@ -249,10 +250,11 @@ void LoadMapViaLoadMethod(ref@ _lm) {
     } else if (method == 'url') {
         // nothing more to prep for url method
     }
-    LoadMapNow(pl, "Trackmania/" + ArchivistModeScriptName);
+    LoadMapNowInArchivist(pl);
     yield();
     InitializeGameMode();
 }
+
 
 
 // const string ArchivistMode = "TrackMania/TM_Archivist_Local";

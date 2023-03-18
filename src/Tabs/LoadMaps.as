@@ -35,10 +35,6 @@ class LoadMapsTab : Tab {
             DrawLocalMapsBrowser();
             UI::EndTabItem();
         }
-        if (UI::BeginTabItem("Local Maps")) {
-            DrawLocalMapsBrowser();
-            UI::EndTabItem();
-        }
         if (UI::BeginTabItem("From TMX")) {
             DrawTMXLoadMaps();
             UI::Separator();
@@ -134,18 +130,26 @@ class LoadMapsTab : Tab {
         }
         auto campaign = app.OfficialCampaigns[0];
         auto maps = campaign.MapGroups[0].MapInfos;
-        for (uint i = 0; i < maps.Length; i++) {
-            auto item = maps[i];
-            UI::PushID(item);
-            if (UI::Button("Play")) {
-                campaignMapFilePath = item.FileName;
-                campaignMapUid = item.MapUid;
-                startnew(CoroutineFunc(LoadCampaignMap));
+        auto rows = maps.Length / 5;
+        UI::Columns(5);
+        for (uint i = 0; i < rows; i++) {
+            for (uint c = 0; c < 5; c++) {
+                auto ix = c * 5 + i;
+                if (ix >= maps.Length) continue;
+                if (ix > 0) UI::NextColumn();
+                auto item = maps[ix];
+                UI::PushID(item);
+                if (UI::Button("Play")) {
+                    campaignMapFilePath = item.FileName;
+                    campaignMapUid = item.MapUid;
+                    startnew(CoroutineFunc(LoadCampaignMap));
+                }
+                UI::SameLine();
+                UI::Text(item.Name);
+                UI::PopID();
             }
-            UI::SameLine();
-            UI::Text(item.Name);
-            UI::PopID();
         }
+        UI::Columns(1);
     }
 
     void LoadCampaignMap() {

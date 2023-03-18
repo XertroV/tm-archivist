@@ -1,3 +1,12 @@
+// call this after a map is loaded to populate settings and send the token to the game mode script
+void InitializeGameMode() {
+    UpdateModeSettingsViaMLHook();
+    startnew(UpdateApiTokenViaMLHook);
+    // only need the http server if ghosts are enabled.
+    if (S_SaveGhosts)
+        StartHttpServer();
+}
+
 class LoadMapsTab : Tab {
     LoadMapsTab() {
         super(Icons::FolderOpen + " Load Map", false);
@@ -10,27 +19,30 @@ class LoadMapsTab : Tab {
         startnew(CoroutineFunc(LoadCurrentFolder));
     }
 
-    // call this after a map is loaded to populate settings and send the token to the game mode script
-    void InitializeGameMode() {
-        UpdateModeSettingsViaMLHook();
-        startnew(UpdateApiTokenViaMLHook);
-        // only need the http server if ghosts are enabled.
-        if (S_SaveGhosts)
-            StartHttpServer();
-    }
-
     void DrawInner() override {
         if (!initialized) InitializeSync();
         // UI::AlignTextToFramePadding();
         Heading("Load Map", 0);
 
         UI::BeginTabBar("load maps method");
+        if (LocalStats::GetRecentMaps().Length > 0) {
+            if (UI::BeginTabItem("Recent Maps")) {
+                DrawLoadRecentMaps();
+                UI::EndTabItem();
+            }
+        }
+        if (UI::BeginTabItem("Local Maps")) {
+            DrawLocalMapsBrowser();
+            UI::EndTabItem();
+        }
         if (UI::BeginTabItem("Local Maps")) {
             DrawLocalMapsBrowser();
             UI::EndTabItem();
         }
         if (UI::BeginTabItem("From TMX")) {
             DrawTMXLoadMaps();
+            UI::Separator();
+            DrawURLLoadMap();
             UI::EndTabItem();
         }
         if (UI::BeginTabItem("Campaign")) {
@@ -46,10 +58,10 @@ class LoadMapsTab : Tab {
 
     void OnLoadLocalMap() {
         auto toLoad = CurrentFolder.OnClickAddSelectedMaps();
-        AddToRecentMaps(toLoad);
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(toLoad[0]));
         ReturnToMenu(true);
         // LoadMapNow(tmxIdToUrl('90000'), "Trackmania/" + ArchivistModeScriptName);
-        LoadMapsNow(toLoad, "Trackmania/" + ArchivistModeScriptName);
+        LoadMapNow(toLoad[0], "Trackmania/" + ArchivistModeScriptName);
         // cast<CGameManiaPlanet>(GetApp()).ManiaPlanetScriptAPI.Dialog_CleanCache();
         yield();
         InitializeGameMode();
@@ -71,7 +83,7 @@ class LoadMapsTab : Tab {
         UI::SetNextItemWidth(100);
         m_TMX = UI::InputText("##tmx-id", m_TMX, pressedEnter, UI::InputTextFlags::EnterReturnsTrue);
         UI::SameLine();
-        if (UI::Button("Play Map##main-btn") || pressedEnter) {
+        if (UI::Button("Play Map##tmx-btn") || pressedEnter) {
             m_URL = tmxIdToUrl(m_TMX);
             if (m_TMX.StartsWith("http")) {
                 m_URL = m_TMX;
@@ -83,8 +95,29 @@ class LoadMapsTab : Tab {
         AddSimpleTooltip("Instead of downloading maps from TMX, download them from the CGF mirror.");
     }
 
+    void DrawURLLoadMap() {
+        UI::AlignTextToFramePadding();
+        UI::Text("URL:");
+        UI::SameLine();
+        bool pressedEnter = false;
+        UI::SetNextItemWidth(250);
+        m_URL = UI::InputText("##url-id", m_URL, pressedEnter, UI::InputTextFlags::EnterReturnsTrue);
+        UI::SameLine();
+        if (UI::Button("Play Map##url-btn") || pressedEnter) {
+            startnew(CoroutineFunc(OnLoadUrlMapNow));
+        }
+    }
+
     void OnLoadTmxMapNow() {
-        AddToRecentMaps({m_URL});
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodTmx(m_URL, m_TMX));
+        ReturnToMenu(true);
+        LoadMapNow(m_URL, "Trackmania/" + ArchivistModeScriptName);
+        yield();
+        InitializeGameMode();
+    }
+
+    void OnLoadUrlMapNow() {
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(m_URL));
         ReturnToMenu(true);
         LoadMapNow(m_URL, "Trackmania/" + ArchivistModeScriptName);
         yield();
@@ -92,6 +125,7 @@ class LoadMapsTab : Tab {
     }
 
     string campaignMapFilePath;
+    string campaignMapUid;
     void DrawCampaignLoadMaps() {
         auto app = GetApp();
         if (app.OfficialCampaigns.Length < 1) {
@@ -105,6 +139,7 @@ class LoadMapsTab : Tab {
             UI::PushID(item);
             if (UI::Button("Play")) {
                 campaignMapFilePath = item.FileName;
+                campaignMapUid = item.MapUid;
                 startnew(CoroutineFunc(LoadCampaignMap));
             }
             UI::SameLine();
@@ -114,7 +149,7 @@ class LoadMapsTab : Tab {
     }
 
     void LoadCampaignMap() {
-        AddToRecentMaps({campaignMapFilePath});
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(campaignMapUid));
         ReturnToMenu(true);
         LoadMapNow(campaignMapFilePath, "Trackmania/" + ArchivistModeScriptName);
         yield();
@@ -151,6 +186,7 @@ class LoadMapsTab : Tab {
     }
 
     void GetCurrMapDetails() {
+        // todo: handle not found case
         currMapDeetsLoading = true;
         loadCurrentFileName = "";
         auto _mi = GetMapFromUid(loadCurrentUid);
@@ -159,7 +195,7 @@ class LoadMapsTab : Tab {
     }
 
     void LoadCurrentMap() {
-        AddToRecentMaps({loadCurrentFileName});
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(loadCurrentUid));
         ReturnToMenu(true);
         LoadMapNow(loadCurrentFileName, "Trackmania/" + ArchivistModeScriptName);
         yield();
@@ -171,6 +207,101 @@ class LoadMapsTab : Tab {
     void LoadCurrentFolder() {
         @CurrentFolder = Folder("Maps", Map_GetFilteredGameList(4, "", false, false, false));
     }
+
+    void DrawLoadRecentMaps() {
+        int nbStyCol = 1;
+        UI::PushStyleColor(UI::Col::TableRowBgAlt, vec4(vec3(.25), .4));
+        auto recents = LocalStats::GetRecentMaps();
+        int nCols = 11;
+        if (UI::BeginTable("recent maps", nCols, UI::TableFlags::SizingStretchProp | UI::TableFlags::RowBg)) {
+            UI::TableSetupColumn("");
+            UI::TableSetupColumn("Name");
+            UI::TableSetupColumn("Author");
+            UI::TableSetupColumn("Last Played");
+            UI::TableSetupColumn("# Loads");
+            UI::TableSetupColumn("Runs");
+            UI::TableSetupColumn("Fins");
+            UI::TableSetupColumn("Resets");
+            UI::TableSetupColumn("CPs");
+            UI::TableSetupColumn("Respawns");
+            UI::TableSetupColumn("Σ Time");
+            UI::TableHeadersRow();
+
+            UI::ListClipper clip(recents.Length);
+            while (clip.Step()) {
+                for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
+                    if (i % 2 == 1) {
+                    }
+                    DrawLoadRecentMapItem(recents[i]);
+                }
+            }
+            UI::EndTable();
+        }
+        UI::PopStyleColor(nbStyCol);
+    }
+
+    void DrawLoadRecentMapItem(const string &in uid) {
+        UI::PushID(uid);
+        UI::TableNextRow();
+        UI::TableNextColumn();
+        UI::AlignTextToFramePadding();
+        if (uid.Length < 23) {
+            UI::Text("\\$aa2Bad map UID: " + uid);
+            return;
+        }
+        auto mi = LocalStats::GetMapInfoData(uid);
+
+        if (UI::Button(Icons::Play)) {
+            startnew(LoadMapViaLoadMethod, mi['load_method']);
+        }
+        AddSimpleTooltip("Play map now.");
+        UI::SameLine();
+        UI::Button(Icons::StarO);
+        AddSimpleTooltip("Favorite this Map. \\$f8aNote: this isn't yet implemented. LMK if you want this feature. There would be a 'favorite maps' tab.");
+
+        UI::TableNextColumn();
+        UI::AlignTextToFramePadding();
+        UI::Text(string(mi['name']));
+
+        UI::TableNextColumn();
+        UI::Text(string(mi['author']));
+
+        // last played
+        string last_played = mi.Get('last_played', "?");
+        if (last_played.Length > 1) {
+            last_played = GetHumanTimePeriod(Time::Stamp - Text::ParseInt64(last_played));
+        }
+        UI::TableNextColumn();
+        UI::Text(last_played);
+
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mi['nb_loaded'])));
+
+        auto mapStats = LocalStats::GetMapStats(uid);
+
+        // # Runs
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mapStats.Get('runs', 0))));
+        // # Fins
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mapStats.Get('complete_runs', 0))));
+        // # Resets
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mapStats.Get('partial_runs', 0))));
+        // # CPs
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mapStats.Get('nbCheckpoints', 0))));
+        // # Respawns
+        UI::TableNextColumn();
+        UI::Text(tostring(int(mapStats.Get('nbRespawns', 0))));
+        // # Time Spent
+        UI::TableNextColumn();
+        UI::Text(Time::Format(Text::ParseInt64(string(mapStats.Get('time_spent', '0'))) * 1000, false, true, true));
+
+
+        UI::PopID();
+    }
+
 }
 
 LoadMapsTab@ _LoadMaps = LoadMapsTab();

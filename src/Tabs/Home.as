@@ -7,6 +7,7 @@ class HomeTab : Tab {
         DrawLocalStatsBar();
         Heading("Mode Settings", .1);
         UI::Separator();
+        UI::Text("\\$d84Note: You must re-load a map for settings to take effect.");
         SubHeading("In-game Ghosts");
         UI::BeginDisabled(S_KeepAllGhostsLoaded);
         S_NbPbGhosts = Math::Max(0, UI::SliderInt("# PB Ghosts", S_NbPbGhosts, 0, 10));

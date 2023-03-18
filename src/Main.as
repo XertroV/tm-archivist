@@ -9,15 +9,16 @@ void Main() {
     startnew(ClearTaskCoro);
     UserHasPermissions = Permissions::PlayLocalMap()
         && Permissions::CreateLocalReplay();
-    LocalStats::Load();
     if (!UserHasPermissions) {
         NotifyWarning("You don't appear to have the necessary permissions: PlayLocalMap and CreateLocalReplay");
         return;
     }
-    startnew(MainCoro);
+    LocalStats::Load();
     startnew(AuthLoop);
+    startnew(WatchForMapChange);
     UpdateArchivistGameModeScript();
     UpdateModeSettingsViaMLHook();
+    CheckCurrentGameModeForArchivist();
 }
 
 void OnDisabled() { _Unload(); }
@@ -59,10 +60,52 @@ void UpdateArchivistGameModeScript() {
     trace('Updated Archivist game mode script');
 }
 
-void MainCoro() {
+string g_MapUid;
+void WatchForMapChange() {
+    auto app = GetApp();
     while (true) {
         yield();
+        if (app.RootMap is null) {
+            if (g_MapUid != "") {
+                g_MapUid = "";
+                startnew(OnMapLeft);
+            }
+        } else if (app.RootMap.EdChallengeId != g_MapUid) {
+            g_MapUid = app.RootMap.EdChallengeId;
+            startnew(OnMapChanged);
+        }
     }
+}
+
+void OnMapLeft() {
+    // nothing to do
+}
+
+void OnMapChanged() {
+    auto net = cast<CTrackManiaNetwork>(GetApp().Network);
+    auto si = cast<CTrackManiaNetworkServerInfo>(net.ServerInfo);
+    if (si.CurGameModeStr == "") {
+        log_debug("empty game mode string");
+    } else {
+        log_debug("curr game mode: " + si.CurGameModeStr);
+        if (si.CurGameModeStr.StartsWith("TM_Archivist_")) {
+            log_trace("detected map in archivist game mode");
+            startnew(LocalStats::RegisterCurrentMapAsRecent);
+        }
+    }
+}
+
+bool checkedGameModeAtStartup = false;
+void CheckCurrentGameModeForArchivist() {
+    if (checkedGameModeAtStartup) return;
+    checkedGameModeAtStartup = true;
+    try {
+        auto si = cast<CTrackManiaNetworkServerInfo>(GetApp().Network.ServerInfo);
+        if (si.CurGameModeStr.StartsWith("TM_Archivist_")) {
+            // if we load the plugin while in an archivist map (i.e., plugin reload) then start the http server.
+            StartHttpServer();
+        }
+    } catch {}
 }
 
 void Notify(const string &in msg) {
@@ -151,7 +194,10 @@ void DrawToolbar() {
     if (UI::BeginMenuBar()) {
         if (UI::BeginMenu("Load Map")) {
             if (UI::BeginMenu("Recent")) {
-                // todo
+                auto uids = LocalStats::GetRecentMaps();
+                for (int i = 0; i < Math::Min(10, uids.Length); i++) {
+                    DrawMapMenuItem(uids[i]);
+                }
                 UI::EndMenu();
             }
             UI::EndMenu();
@@ -166,7 +212,47 @@ void DrawToolbar() {
     UI::PopID();
 }
 
+void DrawMapMenuItem(const string &in uid) {
+    if (uid.Length < 23) {
+        UI::Text("\\$aa2Bad map UID: " + uid);
+        return;
+    }
+    auto mi = LocalStats::GetMapInfoData(uid);
+    UI::PushID(uid);
+    if (UI::MenuItem(string(mi['name']) + "\\$888  by " + string(mi['author']))) {
+        startnew(LoadMapViaLoadMethod, mi['load_method']);
+    }
+    UI::PopID();
+}
 
+void LoadMapViaLoadMethod(ref@ _lm) {
+    Json::Value@ lm = cast<Json::Value>(_lm);
+    if (lm is null) {
+        log_warn('null load method');
+        return;
+    }
+    if (lm.GetType() != Json::Type::Object
+        || !lm.HasKey('method') || !lm.HasKey('payload')
+    ) {
+        log_warn('bad load method: ' + Json::Write(lm));
+        return;
+    }
+    string method = lm['method'];
+    string pl = lm['payload'];
+
+    LocalStats::SetNextMapLoadMethod(null);
+    ReturnToMenu(true);
+    if (method == 'uid') {
+        // todo: handle not found case
+        auto _mi = GetMapFromUid(pl);
+        pl = _mi.FileUrl;
+    } else if (method == 'url') {
+        // nothing more to prep for url method
+    }
+    LoadMapNow(pl, "Trackmania/" + ArchivistModeScriptName);
+    yield();
+    InitializeGameMode();
+}
 
 
 // const string ArchivistMode = "TrackMania/TM_Archivist_Local";
@@ -267,6 +353,21 @@ const string FmtTimestampDateOnly(int64 timestamp = -1) {
 }
 
 
+const string GetHumanTimePeriod(int nSecs) {
+    auto absNSecs = Math::Abs(nSecs);
+    string units;
+    float divBy;
+    if (absNSecs < 60) {units = " s"; divBy = 1;}
+    else if (absNSecs < 3600) {units = " min"; divBy = 60;}
+    else if (absNSecs < 86400*2) {units = " hrs"; divBy = 3600;}
+    else {units = " days"; divBy = 86400;}
+    return Text::Format(absNSecs >= 86400*2 ? "%.1f" : "%.0f", float(nSecs) / divBy) + units;
+}
+
+const string GetHumanTimeSince(uint stamp) {
+    auto nSecs = Time::Stamp - stamp;
+    return GetHumanTimePeriod(nSecs);
+}
 
 
 string _localUserName;

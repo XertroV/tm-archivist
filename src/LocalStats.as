@@ -12,6 +12,7 @@ namespace LocalStats {
             data['maps'] = Json::Object();
             data['init_ts'] = tostring(Time::Stamp);
             data['recent_maps'] = Json::Array();
+            data['map_infos'] = Json::Object();
             data['time_spent'] = "0";
             data['nbRespawns'] = 0;
             data['nbCheckpoints'] = 0;
@@ -33,6 +34,43 @@ namespace LocalStats {
         if (thisReq == lastSaveSoonReq) {
             Save();
         }
+    }
+
+    Json::Value@ GetMapInfosData() {
+        if (data is null) return Json::Object();
+        if (!data.HasKey('map_infos')) return Json::Object();
+        return data.Get('map_infos');
+    }
+
+    Json::Value@ GetRecentMaps() {
+        if (data is null) return Json::Array();
+        if (!data.HasKey('recent_maps')) return Json::Array();
+        return data.Get('recent_maps');
+    }
+
+    Json::Value@ GetMapInfoData(const string &in uid) {
+        auto mapInfos = GetMapInfosData();
+        if (!mapInfos.HasKey(uid)) {
+            mapInfos[uid] = Json::Object();
+            mapInfos[uid]['load_method'] = GenLoadMethodUid(uid);
+            mapInfos[uid]['name'] = '';
+            mapInfos[uid]['author'] = '';
+            mapInfos[uid]['tmx'] = '0';
+            mapInfos[uid]['nb_loaded'] = 0;
+        }
+        return mapInfos.Get(uid);
+    }
+
+    void AddRecentMapUid(const string &in uid) {
+        auto recents = GetRecentMaps();
+        int ix = FindStrInJsonArray(recents, uid);
+        if (ix >= 0) {
+            recents.Remove(ix);
+        } else {
+            ix = recents.Length;
+        }
+        data['recent_maps'] = InsertAtJA(recents, 0, uid);
+        SaveSoon();
     }
 
     int GetTotalTimeSpent() {
@@ -112,7 +150,68 @@ namespace LocalStats {
         }
         return mr[uid];
     }
+
+
+    Json::Value@ nextLoadMethod;
+    void SetNextMapLoadMethod(Json::Value@ lm) {
+        @nextLoadMethod = lm;
+    }
+
+
+    void RegisterCurrentMapAsRecent() {
+        auto map = GetApp().RootMap;
+        if (map is null) {
+            log_warn("Tried to add current map but map is null");
+            return;
+        }
+        auto mi = map.MapInfo;
+        if (mi is null) {
+            log_warn("Tried to add current map but .MapInfo is null");
+            return;
+        }
+        log_warn("Add map to recent: " + ColoredString(mi.Name));
+        // auto dataMapInfos = GetMapInfosData();
+        // data['map_infos'] = dataMapInfos;
+        auto miData = GetMapInfoData(mi.MapUid);
+        if (nextLoadMethod !is null)
+            miData['load_method'] = nextLoadMethod;
+        miData['name'] = ColoredString(mi.Name);
+        miData['author'] = string(mi.AuthorNickName);
+        if (miData['load_method'].HasKey('tmx'))
+            miData['tmx'] = miData['load_method']['tmx'];
+        miData['nb_loaded'] = 1 + miData['nb_loaded'];
+        miData['last_played'] = tostring(Time::Stamp);
+        AddRecentMapUid(mi.MapUid);
+        SaveSoon();
+    }
+
+    Json::Value@ GenLoadMethodUid(const string &in uid) {
+        auto j = Json::Object();
+        j['method'] = 'uid';
+        j['payload'] = uid;
+        return j;
+    }
+
+    Json::Value@ GenLoadMethodUrl(const string &in url) {
+        auto j = Json::Object();
+        j['method'] = 'url';
+        j['payload'] = url;
+        return j;
+    }
+
+    Json::Value@ GenLoadMethodTmx(const string &in url, const string &in tmx) {
+        auto j = Json::Object();
+        j['method'] = 'url';
+        j['payload'] = url;
+        j['tmx'] = tmx;
+        return j;
+    }
 }
+
+
+
+
+
 
 
 void CopyFile(const string &in f1, const string &in f2) {
@@ -130,4 +229,33 @@ const string JsonIntAdd(const string &in jsonInt, int amt) {
         warn("JsonIntAdd Failed: " + getExceptionInfo());
         return "0";
     }
+}
+
+Json::Value@ SliceJA(Json::Value@ arr, uint ix, uint num) {
+    auto ret = Json::Array();
+    for (int c = 0; c < Math::Min(num, arr.Length); c++) {
+        ret.Add(arr[ix + c]);
+    }
+    return ret;
+}
+
+Json::Value@ InsertAtJA(Json::Value@ arr, uint ix, Json::Value@ value) {
+    auto ret = Json::Array();
+    for (uint i = 0; i < uint(Math::Min(ix, arr.Length)); i++) {
+        ret.Add(arr[i]);
+    }
+    ret.Add(value);
+    for (uint i = ix; i < arr.Length; i++) {
+        ret.Add(arr[i]);
+    }
+    return ret;
+}
+
+int FindStrInJsonArray(Json::Value@ arr, const string &in value) {
+    for (uint i = 0; i < arr.Length; i++) {
+        if (value == arr[i]) {
+            return i;
+        }
+    }
+    return -1;
 }

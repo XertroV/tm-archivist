@@ -5,7 +5,7 @@ bool S_AboutTabOpen_1 = true;
 LogLevel S_LogLevel = LogLevel::Warning;
 
 [Setting hidden]
-uint S_NbPbGhosts = 5;
+uint S_NbPbGhosts = 3;
 
 [Setting hidden]
 uint S_NbRecentGhosts = 5;
@@ -14,7 +14,7 @@ uint S_NbRecentGhosts = 5;
 bool S_KeepAllGhostsLoaded = false;
 
 [Setting hidden]
-int S_SaveAfterRaceTime = 5;
+int S_SaveAfterRaceTime = 4;
 
 [Setting hidden]
 string S_ReplayNameTemplate = "{date_time} {duration}ms {username}";
@@ -74,6 +74,7 @@ void DrawSaveGhostsAndOrReplaysCheckbox() {
     //     UI::Text("\\$aaa Upload Ghosts required for use.");
     // }
     S_SaveReplays = UI::Checkbox("Save Replays", S_SaveReplays);
+    AddSimpleTooltip("Note: will generate a noticeable pause when resetting or finishing a map. Ghosts-only doesn't have this problem.");
 }
 
 // void DrawUploadGhostsCheckbox() {

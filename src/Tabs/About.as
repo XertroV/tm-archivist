@@ -26,6 +26,7 @@ class AboutTab : Tab {
  - ghost management sliders work now (pb / recent ghosts)
  - segmented runs behind a setting (compatible with saving ghosts)
  - load maps from TMX or campaign
+ - recent maps and local stats
 
  ## Usage
 

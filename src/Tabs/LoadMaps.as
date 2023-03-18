@@ -37,6 +37,10 @@ class LoadMapsTab : Tab {
             DrawCampaignLoadMaps();
             UI::EndTabItem();
         }
+        if (UI::BeginTabItem("Current Map")) {
+            DrawLoadCurrentMap();
+            UI::EndTabItem();
+        }
         UI::EndTabBar();
     }
 
@@ -113,6 +117,51 @@ class LoadMapsTab : Tab {
         AddToRecentMaps({campaignMapFilePath});
         ReturnToMenu(true);
         LoadMapNow(campaignMapFilePath, "Trackmania/" + ArchivistModeScriptName);
+        yield();
+        InitializeGameMode();
+    }
+
+    string loadCurrentFileName;
+    bool currMapDeetsLoading = false;
+    string loadCurrentUid;
+
+    void DrawLoadCurrentMap() {
+        auto app = GetApp();
+        if (app.RootMap is null) {
+            UI::Text("This only works if you're in a map.");
+            return;
+        }
+        auto map = app.RootMap;
+        auto mi = map.MapInfo;
+        if (loadCurrentUid != mi.MapUid) {
+            loadCurrentUid = mi.MapUid;
+            currMapDeetsLoading = true;
+            loadCurrentFileName = "";
+            startnew(CoroutineFunc(GetCurrMapDetails));
+        }
+        UI::Text(ColoredString(StripNonColorFormatCodes(mi.Name)));
+        if (currMapDeetsLoading) {
+            UI::Text("Loading map info...");
+        } else {
+            if (UI::Button("Load in Archivist")) {
+                startnew(CoroutineFunc(LoadCurrentMap));
+            }
+            UI::Text("\\$888 Map Path: " + loadCurrentFileName);
+        }
+    }
+
+    void GetCurrMapDetails() {
+        currMapDeetsLoading = true;
+        loadCurrentFileName = "";
+        auto _mi = GetMapFromUid(loadCurrentUid);
+        loadCurrentFileName = _mi.FileUrl;
+        currMapDeetsLoading = false;
+    }
+
+    void LoadCurrentMap() {
+        AddToRecentMaps({loadCurrentFileName});
+        ReturnToMenu(true);
+        LoadMapNow(loadCurrentFileName, "Trackmania/" + ArchivistModeScriptName);
         yield();
         InitializeGameMode();
     }

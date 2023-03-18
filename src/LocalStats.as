@@ -1,6 +1,6 @@
 namespace LocalStats {
     Json::Value@ data = null;
-    const string DbFilePath = IO::FromStorageFolder("local-stats.json");
+    const string DbFilePath = IO::FromStorageFolder("local-stats_v1.json");
 
     void Load() {
         @data = Json::FromFile(DbFilePath);
@@ -10,9 +10,11 @@ namespace LocalStats {
             data['complete_runs'] = 0;
             data['partial_runs'] = 0;
             data['maps'] = Json::Object();
-            data['init_ts'] = Time::Stamp;
+            data['init_ts'] = tostring(Time::Stamp);
             data['recent_maps'] = Json::Array();
-            data['time_spent'] = 0;
+            data['time_spent'] = "0";
+            data['nbRespawns'] = 0;
+            data['nbCheckpoints'] = 0;
             Save();
         }
     }
@@ -35,7 +37,7 @@ namespace LocalStats {
 
     int GetTotalTimeSpent() {
         if (data is null) return -1;
-        return int(data.Get('time_spent', 0));
+        return Text::ParseInt(data.Get('time_spent', "0"));
     }
 
     int GetTotalRuns() {
@@ -53,19 +55,33 @@ namespace LocalStats {
         return int(data.Get('partial_runs', 0));
     }
 
-    void IncrRuns(const string &in uid, bool complete, uint duration) {
+    int GetNbRespawns() {
+        if (data is null) return -1;
+        return int(data.Get('nbRespawns', 0));
+    }
+
+    int GetNbCheckpoints() {
+        if (data is null) return -1;
+        return int(data.Get('nbCheckpoints', 0));
+    }
+
+    void IncrRuns(const string &in uid, bool complete, uint duration_seconds, int nbRespawns, int nbCheckpoints) {
         if (data is null) return;
         data['runs'] = GetTotalRuns() + 1;
+        data['time_spent'] = tostring(GetTotalTimeSpent() + duration_seconds);
+        data['nbRespawns'] = GetNbRespawns() + nbRespawns;
+        data['nbCheckpoints'] = GetNbCheckpoints() + nbCheckpoints;
         auto map_data = GetMapStats(uid);
-        map_data['runs'] = map_data['runs'] + 1;
+        map_data['runs'] = map_data.Get('runs', 0) + 1;
+        map_data['time_spent'] = JsonIntAdd(map_data.Get('time_spent', "0"), duration_seconds);
+        map_data['nbRespawns'] = map_data.Get('nbRespawns', 0) + nbRespawns;
+        map_data['nbCheckpoints'] = map_data.Get('nbCheckpoints', 0) + nbCheckpoints;
         if (complete) {
-            data['complete_runs'] = data['complete_runs'] + 1;
-            map_data['complete_runs'] = map_data['complete_runs'] + 1;
-            map_data['time_spent'] = map_data['time_spent'] + duration;
+            data['complete_runs'] = GetCompleteRuns() + 1;
+            map_data['complete_runs'] = map_data.Get('complete_runs', 0) + 1;
         } else {
             data['partial_runs'] = GetPartialRuns() + 1;
-            map_data['partial_runs'] = map_data['partial_runs'] + 1;
-            map_data['time_spent'] = map_data['time_spent'] + duration;
+            map_data['partial_runs'] = map_data.Get('partial_runs', 0) + 1;
         }
         SaveSoon();
     }
@@ -90,7 +106,9 @@ namespace LocalStats {
             mr[uid]['complete_runs'] = 0;
             mr[uid]['partial_runs'] = 0;
             mr[uid]['runs'] = 0;
-            mr[uid]['time_spent'] = 0;
+            mr[uid]['time_spent'] = "0";
+            mr[uid]['nbRespawns'] = 0;
+            mr[uid]['nbCheckpoints'] = 0;
         }
         return mr[uid];
     }

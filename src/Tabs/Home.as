@@ -87,14 +87,16 @@ void DrawTemplateVar(const string &in var, const string &in desc) {
 }
 
 void DrawLocalStatsBar() {
-    if (UI::BeginTable("local stats bar", 5, UI::TableFlags::SizingStretchProp)) {
+    if (UI::BeginTable("local stats bar", 6, UI::TableFlags::SizingStretchProp)) {
         UI::TableNextColumn();
         UI::AlignTextToFramePadding();
         SubSubHeading("STATS", 0);
         UI::TableNextColumn();
-        UI::Text("Runs (Total / Partial / Complete): " + LocalStats::GetTotalRuns() + " / " + LocalStats::GetPartialRuns() + " / " + LocalStats::GetCompleteRuns());
+        UI::Text("Runs (Total / Partial / Full): " + LocalStats::GetTotalRuns() + " / " + LocalStats::GetPartialRuns() + " / " + LocalStats::GetCompleteRuns());
         UI::TableNextColumn();
-        UI::Text("Time Spent (HH:MM:SS): " + Time::Format(LocalStats::GetTotalTimeSpent(), false, true, true));
+        UI::Text("Respanws / CPs: " + LocalStats::GetNbRespawns() + " / " + LocalStats::GetNbCheckpoints());
+        UI::TableNextColumn();
+        UI::Text("Time Spent (HH:MM:SS): " + Time::Format(uint64(LocalStats::GetTotalTimeSpent()) * 1000, false, true, true));
         UI::TableNextColumn();
         UI::Text("# Maps: " + LocalStats::GetNbMaps());
 

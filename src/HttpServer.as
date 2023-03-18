@@ -28,7 +28,7 @@ HttpResponse@ HandleReportResult(const string &in type, const string &in route, 
     try {
         // See K_RunResult in TM_Archivist_Local.Script.txt
         auto report = Json::Parse(data);
-
+        LocalStats::IncrRuns(report['MapUid'], !bool(report['Partial']), report['DurationSec'], report['NbRespawns'], report['NbCheckpoints']);
     } catch {
         log_warn("Exception processing report result: " + getExceptionInfo());
     }
@@ -94,10 +94,12 @@ class HttpResponse {
 
     string body {
         get { return _body; }
-        set {
-            _body = value;
-            headers['Content-Length'] = tostring(value.Length);
-        }
+    }
+
+    // yep works
+    void set_body(const string &in value) {
+        _body = value;
+        headers['Content-Length'] = tostring(value.Length);
     }
 
     HttpResponse() {
@@ -203,7 +205,6 @@ class HttpServer {
     protected void RunClient(ref@ clientRef) {
         auto client = cast<Net::Socket>(clientRef);
         if (client is null) return;
-        log_warn("todo: run client");
         uint clientStarted = Time::Now;
         while (Time::Now - clientStarted < 10000 && client.Available() == 0) yield();
         if (client.Available() == 0) {

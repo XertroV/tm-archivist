@@ -84,7 +84,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  #Struct K_RunResult {
     Text MapUid;
     Boolean Partial;
-    Integer Duration;
+    Integer DurationSec;
     Integer NbRespawns;
     Integer NbCheckpoints;
     Integer Now;
@@ -949,7 +949,7 @@ Void ReportRunResult(CSmPlayer Player, Boolean Partial) {
     declare result = K_RunResult {
         MapUid = Map.MapInfo.MapUid,
         Partial = Partial,
-        Duration = Player.CurrentRaceTime,
+        DurationSec = (Player.CurrentRaceTime + 500) / 1000,
         NbRespawns = Player.Score.NbRespawnsRequested,
         NbCheckpoints = Player.RaceWaypointTimes.count,
         Now = Now

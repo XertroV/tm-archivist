@@ -2,7 +2,7 @@ namespace TMX {
     const string getMapByUidEndpoint = "https://trackmania.exchange/api/maps/get_map_info/uid/{id}";
 
     // <https://api2.mania.exchange/Method/Index/37>
-    Json::Value@ GetMapFromUid(const string &in uid) {
+    Json::Value@ GetMapFromTmxByUid(const string &in uid) {
         string url = getMapByUidEndpoint.Replace("{id}", uid);
         auto req = PluginGetRequest(url);
         req.Start();

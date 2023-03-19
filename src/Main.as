@@ -246,6 +246,9 @@ void LoadMapViaLoadMethod(ref@ _lm) {
     if (method == 'uid') {
         // todo: handle not found case
         auto _mi = GetMapFromUid(pl);
+        if (_mi is null) {
+            return;
+        }
         pl = _mi.FileUrl;
     } else if (method == 'url') {
         // nothing more to prep for url method

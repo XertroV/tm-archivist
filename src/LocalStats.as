@@ -21,16 +21,19 @@ namespace LocalStats {
     }
 
     void Save() {
+        auto start = Time::Now;
         if (IO::FileExists(DbFilePath))
             CopyFile(DbFilePath, DbFilePath + ".back");
         Json::ToFile(DbFilePath, data);
+        auto duration = Time::Now - start;
+        log_info("\\$ccfSaved LocalStats JSON db in " + duration + "ms.");
     }
 
     uint lastSaveSoonReq = 0;
     void SaveSoon() {
         uint thisReq = ++lastSaveSoonReq;
         // a little breathing room
-        sleep(500);
+        sleep(300);
         if (thisReq == lastSaveSoonReq) {
             Save();
         }

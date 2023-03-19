@@ -1227,6 +1227,15 @@ Boolean IsPlaying() {
     declare Date = TL::Replace(CLDTParts[0], "/", "-");
     declare Time = TL::Replace(CLDTParts[1], ":", "-");
     declare CleanMapName = TL::Replace(Map.MapInfo.Name, "#", "");
+    CleanMapName = TL::Replace(CleanMapName, "/", "-");
+    CleanMapName = TL::Replace(CleanMapName, "\\", "-");
+    CleanMapName = TL::Replace(CleanMapName, ":", "-");
+    CleanMapName = TL::Replace(CleanMapName, "*", "");
+    CleanMapName = TL::Replace(CleanMapName, "?", "");
+    CleanMapName = TL::Replace(CleanMapName, "\"", "");
+    CleanMapName = TL::Replace(CleanMapName, "<", "(");
+    CleanMapName = TL::Replace(CleanMapName, ">", ")");
+    CleanMapName = TL::Replace(CleanMapName, "|", "");
     declare Ret = TL::Replace(Template, "{map_uid}", Map.MapInfo.MapUid);
     Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
     Ret = TL::Replace(Ret, "{date}", Date);
@@ -1258,8 +1267,10 @@ Boolean IsPlaying() {
  Void SaveReplay(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
     declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Replay.Gbx";
     AddDebugLog("Saving Replay. Partial: "^IsPartial^", Segmented: "^IsSegmented^", File: "^ReplayFileName);
-    declare CTaskResult Task = DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
-    A_PendingWebTasks.add(Task);
+    // don't save this task -- we get an error: 'Null object or elem not found in array: DataFileMgr.TaskResults[###11241]' (note: id number just an example)
+    DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
+    // declare CTaskResult Task = DataFileMgr.Replay_Save(ReplayFileName, Map, Ghost);
+    // A_PendingWebTasks.add(Task);
  }
 
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
@@ -1555,7 +1566,9 @@ Void CheckClearTaskResults() {
     declare CTaskResult[] ToRemove;
     foreach (Task in A_PendingWebTasks) {
         if (!Task.IsProcessing) {
-            DataFileMgr.TaskResult_Release(Task.Id);
+            if (DataFileMgr.TaskResults.existskey(Task.Id)) {
+                DataFileMgr.TaskResult_Release(Task.Id);
+            }
             ToRemove.add(Task);
         }
     }

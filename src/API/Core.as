@@ -25,7 +25,9 @@ CNadeoServicesMap@ GetMapFromUid(const string &in mapUid) {
     auto resp = app.MenuManager.MenuCustom_CurrentManiaApp.DataFileMgr.Map_NadeoServices_GetFromUid(userId, mapUid);
     WaitAndClearTaskLater(resp, app.MenuManager.MenuCustom_CurrentManiaApp.DataFileMgr);
     if (resp.HasFailed || !resp.HasSucceeded) {
-        throw('GetMapFromUid failed: ' + resp.ErrorCode + ", " + resp.ErrorType + ", " + resp.ErrorDescription);
+        NotifyWarning("Couldn't load map info :(");
+        log_warn('GetMapFromUid failed: ' + resp.ErrorCode + ", " + resp.ErrorType + ", " + resp.ErrorDescription);
+        return null;
     }
     return resp.Map;
 }

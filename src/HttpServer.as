@@ -213,7 +213,6 @@ class HttpServer {
             return;
         }
         RunRequest(client);
-        sleep(100);
         log_trace("Closing client.");
         client.Close();
     }

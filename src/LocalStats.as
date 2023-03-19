@@ -33,7 +33,7 @@ namespace LocalStats {
     void SaveSoon() {
         uint thisReq = ++lastSaveSoonReq;
         // a little breathing room
-        sleep(300);
+        sleep(500);
         if (thisReq == lastSaveSoonReq) {
             Save();
         }

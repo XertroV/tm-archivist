@@ -69,8 +69,25 @@ class LoadMapsTab : Tab {
         if (CurrentFolder is null) {
             UI::Text("Loading Maps...");
         } else {
+            if (UI::Button("Resync with game")) {
+                @CurrentFolder = null;
+                startnew(CoroutineFunc(LoadCurrentFolder));
+                return;
+            }
+            AddSimpleTooltip("Refresh known maps based on the game's cached index.");
+            UI::SameLine();
+            if (UI::Button("Rescan disk for maps")) {
+                startnew(CoroutineFunc(RescanForNewMaps));
+            }
+            AddSimpleTooltip("Note: will kick you back to the main menu and can cause a noticeable freeze if you have lots of maps.");
             CurrentFolder.DrawTree();
         }
+    }
+
+    void RescanForNewMaps() {
+        ReturnToMenu(true);
+        yield();
+        cast<CTrackMania>(GetApp()).ScanDiskForChallenges();
     }
 
     void DrawTMXLoadMaps() {
@@ -196,23 +213,57 @@ class LoadMapsTab : Tab {
             UI::Text("This only works if you're in a map.");
             return;
         }
+        auto pgcsapi = app.Network.PlaygroundClientScriptAPI;
+        if (pgcsapi is null) {
+            UI::Text("Unexpected: app.Network.PlaygroundClientScriptAPI is null");
+            return;
+        }
+        auto si = cast<CGameCtnNetServerInfo>(app.Network.ServerInfo);
+        if (si is null) {
+            UI::Text("Unexpected: app.Network.ServerInfo is null");
+            return;
+        }
         auto map = app.RootMap;
         auto mi = map.MapInfo;
-        if (loadCurrentUid != mi.MapUid) {
-            loadCurrentUid = mi.MapUid;
-            currMapDeetsLoading = true;
-            loadCurrentFileName = "";
-            startnew(CoroutineFunc(GetMapDetailsFromUid));
-        }
-        UI::Text(ColoredString(StripNonColorFormatCodes(mi.Name)));
-        if (currMapDeetsLoading) {
-            UI::Text("Loading map info...");
-        } else {
-            if (UI::Button("Load in Archivist")) {
-                startnew(CoroutineFunc(LoadCurrentMap));
+        string mapFileName = "Archivist/" + StripFormatCodes(mi.Name) + '.Map.gbx';
+
+        UI::Text(ColoredString(mi.Name));
+        if (si.IsMapDownloadAllowed) {
+            if (UI::Button("Load in Archivist##via-dl")) {
+                if (pgcsapi.SaveMap(mapFileName)) {
+                    lastSavedMapPath = mapFileName;
+                    startnew(CoroutineFunc(LoadLastSavedMap));
+                    log_info("Loading via saved map: " + ColoredString(mi.Name));
+                } else {
+                    NotifyWarning("map failed to save");
+                }
             }
-            UI::Text("\\$888 Map Path: " + loadCurrentFileName);
+            UI::Text("\\$888 Will be saved to Maps/"+mapFileName);
+        } else {
+            if (loadCurrentUid != mi.MapUid) {
+                loadCurrentUid = mi.MapUid;
+                currMapDeetsLoading = true;
+                loadCurrentFileName = "";
+                startnew(CoroutineFunc(GetMapDetailsFromUid));
+            }
+            if (currMapDeetsLoading) {
+                UI::Text("Loading map info...");
+            } else {
+                if (UI::Button("Load in Archivist##via-uid")) {
+                    startnew(CoroutineFunc(LoadCurrentMap));
+                }
+                UI::Text("\\$888 Map Path: " + loadCurrentFileName);
+            }
         }
+    }
+
+    string lastSavedMapPath;
+    void LoadLastSavedMap() {
+        LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(lastSavedMapPath));
+        ReturnToMenu(true);
+        LoadMapNowInArchivist(lastSavedMapPath);
+        yield();
+        InitializeGameMode();
     }
 
     void GetMapDetailsFromUid() {

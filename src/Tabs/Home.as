@@ -19,6 +19,8 @@ class HomeTab : Tab {
         S_SaveAfterRaceTime = Math::Max(0, UI::InputInt("Save ghosts only after X seconds", S_SaveAfterRaceTime, 1));
         AddSimpleTooltip("If you reset before X seconds have passed, a partial replay will not be saved.");
         S_KeepAllGhostsLoaded = UI::Checkbox("Keep *All* Ghosts Loaded (including Partial completions)", S_KeepAllGhostsLoaded);
+        S_RefreshRecordsRegularly = UI::Checkbox("Refresh Records Regularly (when you finish/restart, no more than once per 30s)", S_RefreshRecordsRegularly);
+        AddSimpleTooltip("Note: any leaderboards ghosts you load will be unloaded when the LB refreshes.");
 
         // SubHeading("Online");
         // DrawUploadGhostsCheckbox();

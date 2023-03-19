@@ -66,6 +66,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
     Integer S_NbRecentGhosts;
     Integer S_SaveAfterRaceTimeMs;
     Boolean S_KeepAllGhostsLoaded;
+    Boolean S_RefreshRecordsRegularly;
     // Boolean S_UploadGhosts;
     Boolean S_SaveGhosts;
     Boolean S_SaveReplays;
@@ -665,9 +666,12 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 
      declare RacePendingEvents = Race::GetPendingEvents();
      foreach (Event in RacePendingEvents) {
+        // This happens when we hit delete after finishing the race
          if (Event.Type == Events::C_Type_SkipOutro) {
              Race::ValidEvent(Event);
-             if (!Round_ImprovedTime) SkipEndRaceMenu = True;
+            //  if (!Round_ImprovedTime)
+            // always skip end menu
+             SkipEndRaceMenu = True;
          } else {
              Race::InvalidEvent(Event);
          }
@@ -898,11 +902,16 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  // Functions
  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 
+ // Archivist global vars stuff
+ declare K_PluginSettings ArchivistSettings;
+ declare Text Archivist_Openplanet_Token;
  declare K_LoadedGhost[] Archivist_PbGhosts;
  declare K_LoadedGhost[] Archivist_RecentGhosts;
 //  declare K_LoadedGhost[] Archivist_PartialGhosts;
 declare CTaskResult[] A_PendingWebTasks;
 declare Http::K_Request[] A_PendingHttpTasks;
+
+
 
  // for use with Beu's debug script
  Void AddDebugLog(Text msg) {
@@ -923,6 +932,7 @@ Void MsgToMLHook(Text[] msg) {
 declare Integer LastRefreshRecords;
 
 Void RefreshRecordsUI() {
+    if (!ArchivistSettings.S_RefreshRecordsRegularly) return;
     if (Now > LastRefreshRecords + 30000 || LastRefreshRecords == 0) {
         LastRefreshRecords = Now;
         UIModules_Record::ForceMapUpdate();
@@ -962,13 +972,6 @@ Void ReportRunResult(CSmPlayer Player, Boolean Partial) {
         AddDebugLog("http request delayed due to saturated...");
     }
 }
-
-
-// Archivist stuff
-declare K_PluginSettings ArchivistSettings;
-declare Text Archivist_Openplanet_Token;
-declare Ident[] Server_PbGhosts;
-
 
 
 Text OpAuthHeaders() {

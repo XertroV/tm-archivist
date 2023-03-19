@@ -11,6 +11,7 @@ void UpdateModeSettingsViaMLHook() {
 
     // bool
     data["S_KeepAllGhostsLoaded"] = S_KeepAllGhostsLoaded;
+    data["S_RefreshRecordsRegularly"] = S_RefreshRecordsRegularly;
     // data["S_UploadGhosts"] = S_UploadGhosts;
     data["S_SaveGhosts"] = S_SaveGhosts;
     data["S_SaveReplays"] = S_SaveReplays;

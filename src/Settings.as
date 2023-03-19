@@ -14,6 +14,9 @@ uint S_NbRecentGhosts = 5;
 bool S_KeepAllGhostsLoaded = false;
 
 [Setting hidden]
+bool S_RefreshRecordsRegularly = true;
+
+[Setting hidden]
 int S_SaveAfterRaceTime = 4;
 
 [Setting hidden]

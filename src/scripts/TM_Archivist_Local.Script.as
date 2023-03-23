@@ -67,6 +67,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
     Integer S_SaveAfterRaceTimeMs;
     Boolean S_KeepAllGhostsLoaded;
     Boolean S_RefreshRecordsRegularly;
+    Boolean S_NoSaveIfNoMove;
     // Boolean S_UploadGhosts;
     Boolean S_SaveGhosts;
     Boolean S_SaveReplays;
@@ -495,7 +496,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
              }
          }
      } else if (Event.Type == Events::C_Type_GiveUp) {
-        if (Event.Player != Null && Round_HasMoved && Event.Player.CurrentRaceTime > ArchivistSettings.S_SaveAfterRaceTimeMs && IsPlaying()) {
+        if (Event.Player != Null && (Round_HasMoved || !ArchivistSettings.S_NoSaveIfNoMove) && Event.Player.CurrentRaceTime > ArchivistSettings.S_SaveAfterRaceTimeMs && IsPlaying()) {
             // truncation never works with partial ghosts
             declare CGhost _Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player, False);
             _Ghost.Result.Time = Event.Player.CurrentRaceTime;

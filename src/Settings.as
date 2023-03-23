@@ -20,6 +20,9 @@ bool S_RefreshRecordsRegularly = true;
 int S_SaveAfterRaceTime = 4;
 
 [Setting hidden]
+bool S_NoSaveIfNoMove = true;
+
+[Setting hidden]
 string S_ReplayNameTemplate = "{date_time} {duration}ms {username}";
 
 [Setting hidden]

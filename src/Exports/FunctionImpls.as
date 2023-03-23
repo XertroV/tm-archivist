@@ -39,5 +39,9 @@ void _LoadMapFromUidOrUrlForExport(ref@ uidArrRef) {
         }
         url = mi.FileUrl;
     }
+    log_info(Meta::ExecutingPlugin().Name + " is loading a map in Archivist: " + url);
+    LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUrl(url));
     LoadMapNowInArchivist(url);
+    yield();
+    InitializeGameMode();
 }

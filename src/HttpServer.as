@@ -41,13 +41,13 @@ HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, d
         return HttpResponse(404);
     }
     uint suffix = 0;
-    while (IO::FileExists(ReplayPathWithSuffix(route, suffix))) {
+    while (IO::FileExists(Net::UrlDecode(ReplayPathWithSuffix(route, suffix)))) {
         suffix++;
         if (suffix >= 100) throw("More than 100 replays with the same filename...");
     }
     auto fname = Net::UrlDecode(ReplayPathWithSuffix(route, suffix));
     string folderPath = GetFolderPath(fname);
-    log_info("Saving ghost to: " + fname);
+    Notify("Saving ghost to: " + fname);
     if (!IO::FolderExists(folderPath)) {
         IO::CreateFolder(folderPath, true);
     }

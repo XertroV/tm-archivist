@@ -2,7 +2,7 @@
 bool S_AboutTabOpen_1 = true;
 
 [Setting]
-LogLevel S_LogLevel = LogLevel::Warning;
+LogLevel S_LogLevel = LogLevel::Info;
 
 [Setting hidden]
 uint S_NbPbGhosts = 3;

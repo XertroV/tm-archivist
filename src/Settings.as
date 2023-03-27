@@ -1,7 +1,7 @@
 [Setting hidden]
 bool S_AboutTabOpen_1 = true;
 
-[Setting]
+[Setting name="Log Level" category="General"]
 LogLevel S_LogLevel = LogLevel::Info;
 
 [Setting hidden]
@@ -118,5 +118,115 @@ void DrawSegmentedRunsCheckbox() {
         UI::Text("\\$aaa Runs will be saved under the `Complete/Segmented` subfolder.");
     } else {
         UI::Text("\\$aaa Segmented runs will not be saved.");
+    }
+}
+
+
+
+
+/*
+ * HOTKEYS
+ */
+
+
+[Setting hidden]
+bool S_SH_HotkeyEnabled = false;
+
+[Setting hidden]
+VirtualKey S_ShowHideHotkey = VirtualKey::F2;
+
+[SettingsTab name="Hotkeys" icon="Th" order="1"]
+void S_MainTab() {
+    if (UI::BeginTable("bindings", 4, UI::TableFlags::SizingStretchSame)) {
+        UI::TableSetupColumn("Key", UI::TableColumnFlags::WidthStretch, 1.1);
+        UI::TableSetupColumn("Binding", UI::TableColumnFlags::WidthStretch, .3f);
+        UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 70);
+        UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed, 100);
+        UI::TableHeadersRow();
+
+        S_ShowHideHotkey = DrawKeyBinding("Show/Hide Toggle", S_ShowHideHotkey);
+        S_SH_HotkeyEnabled = DrawKeyBindSwitch("show-hide", S_SH_HotkeyEnabled);
+        // S_FrontView = DrawKeyBinding("Front View (Blender: Numpad 1)", S_FrontView);
+        // S_SideView = DrawKeyBinding("Side View (Blender: Numpad 3)", S_SideView);
+        // S_TopDownView = DrawKeyBinding("Top Down View (Blender: Numpad 7)", S_TopDownView);
+        // S_FlipAxis = DrawKeyBinding("Rotate 180 around Y (Blender: Numpad 9)", S_FlipAxis);
+
+        UI::EndTable();
+    }
+    UI::Separator();
+    if (rebindInProgress) {
+        UI::Text("Press a key to bind, or Esc to cancel.");
+    }
+}
+
+string activeKeyName;
+VirtualKey tmpKey;
+bool gotNextKey = false;
+bool rebindInProgress = false;
+bool rebindAborted = false;
+VirtualKey DrawKeyBinding(const string &in name, VirtualKey &in valIn) {
+    bool amActive = rebindInProgress && activeKeyName == name;
+    bool amDone = (rebindAborted || gotNextKey) && !rebindInProgress && activeKeyName == name;
+    UI::PushID(name);
+
+    UI::TableNextRow();
+    UI::TableNextColumn();
+    UI::AlignTextToFramePadding();
+    UI::Text(name);
+
+    UI::TableNextColumn();
+    UI::Text(tostring(valIn));
+
+    UI::TableNextColumn();
+    UI::BeginDisabled(rebindInProgress);
+    if (UI::Button("Rebind")) StartRebind(name);
+    UI::EndDisabled();
+
+    UI::PopID();
+    // if (amActive) {
+        // UI::SameLine();
+        // UI::Text("Press a key to bind, or Esc to cancel.");
+    // }
+    if (amDone) {
+        if (gotNextKey) {
+            ResetBindingState();
+            return tmpKey;
+        } else {
+            UI::SameLine();
+            UI::Text("\\$888Rebind aborted.");
+        }
+    }
+    return valIn;
+}
+
+bool DrawKeyBindSwitch(const string &in id, bool val) {
+    UI::TableNextColumn();
+    return UI::Checkbox("Enabled##" + id, val);
+}
+
+void ResetBindingState() {
+    rebindInProgress = false;
+    activeKeyName = "";
+    gotNextKey = false;
+    rebindAborted = false;
+}
+
+void StartRebind(const string &in name) {
+    if (rebindInProgress) return;
+    rebindInProgress = true;
+    activeKeyName = name;
+    gotNextKey = false;
+    rebindAborted = false;
+}
+
+void ReportRebindKey(VirtualKey key) {
+    if (!rebindInProgress) return;
+    if (key == VirtualKey::Escape) {
+        rebindInProgress = false;
+        rebindAborted = true;
+    } else {
+        rebindInProgress = false;
+        gotNextKey = true;
+        tmpKey = key;
     }
 }

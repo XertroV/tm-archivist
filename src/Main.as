@@ -163,7 +163,7 @@ bool m_UseTmxMirror = false;
 void Render() {
     if (!ShowWindow || !UI::IsOverlayShown() || GetApp().Editor !is null) return;
     _AuthLoopStartEarly = true;
-    vec2 size = vec2(900, 800);
+    vec2 size = vec2(1100, 800);
     vec2 pos = (vec2(Draw::GetWidth(), Draw::GetHeight()) - size) / 2.;
     UI::SetNextWindowSize(int(size.x), int(size.y), UI::Cond::FirstUseEver);
     UI::SetNextWindowPos(int(pos.x), int(pos.y), UI::Cond::FirstUseEver);
@@ -383,4 +383,18 @@ const string LocalUserName {
         }
         return _localUserName;
     }
+}
+
+
+
+UI::InputBlocking OnKeyPress(bool down, VirtualKey key) {
+    if (down && rebindInProgress) {
+        ReportRebindKey(key);
+        return UI::InputBlocking::Block;
+    }
+    if (S_SH_HotkeyEnabled && down && key == S_ShowHideHotkey) {
+        if (UI::IsOverlayShown() && GetApp().Editor is null)
+            ShowWindow = !ShowWindow;
+    }
+    return UI::InputBlocking::DoNothing;
 }

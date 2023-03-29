@@ -181,7 +181,6 @@ void Render() {
     UI::PopStyleColor();
 }
 
-
 /** Called when a setting in the settings panel was changed.
 */
 void OnSettingsChanged() {

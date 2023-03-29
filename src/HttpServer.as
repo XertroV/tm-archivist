@@ -291,7 +291,11 @@ class HttpServer {
 string FormatHeaders(dictionary@ headers) {
     auto keys = headers.GetKeys();
     for (uint i = 0; i < keys.Length; i++) {
-        keys[i] = keys[i] + ": " + string(headers[keys[i]]);
+        if (keys[i].ToLower() == "authorization") {
+            keys[i] += ": <auth omitted>";
+        } else {
+            keys[i] = keys[i] + ": " + string(headers[keys[i]]);
+        }
     }
     return string::Join(keys, "\r\n");
 }

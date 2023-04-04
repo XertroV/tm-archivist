@@ -282,6 +282,9 @@ class HttpServer {
             log_warn("Header line failed to parse: " + line + " // " + parts[0]);
         } else {
             d[parts[0]] = parts[1];
+            if (parts[0].ToLower().Contains("authorization")) {
+                parts[1] = "<auth omitted>";
+            }
             log_trace("Parsed header line: " + parts[0] + ": " + parts[1]);
         }
     }
@@ -291,10 +294,10 @@ class HttpServer {
 string FormatHeaders(dictionary@ headers) {
     auto keys = headers.GetKeys();
     for (uint i = 0; i < keys.Length; i++) {
-        if (keys[i].ToLower() == "authorization") {
+        if (keys[i].ToLower().Contains("authorization")) {
             keys[i] += ": <auth omitted>";
         } else {
-            keys[i] = keys[i] + ": " + string(headers[keys[i]]);
+            keys[i] += ": " + string(headers[keys[i]]);
         }
     }
     return string::Join(keys, "\r\n");

@@ -23,7 +23,10 @@ void UpdateModeSettingsViaMLHook() {
     data["S_ReplayNameTemplate"] = S_ReplayNameTemplate;
     data["S_ReplayFolderTemplate"] = S_ReplayFolderTemplate;
 
-    MLHook::Queue_MessageManialinkPlaygroundServer(GameMode_PageUID, {'ArchivistSettings', Json::Write(data)});
+    string _data = Json::Write(data);
+    trace('Archivist populating settings: ' + _data);
+
+    MLHook::Queue_MessageManialinkPlaygroundServer(GameMode_PageUID, {'ArchivistSettings', _data});
 }
 
 uint lastUpdateTokenStarted = 0;

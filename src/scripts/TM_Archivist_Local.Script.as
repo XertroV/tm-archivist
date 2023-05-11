@@ -340,6 +340,9 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 //  GhostRecorder_SetEnabled(Players[0], True);
 
  UIManager.HoldLoadingScreen = False;
+
+ // load init settings
+ LoadInitSettings();
  ***
 
  ***Match_InitMap***
@@ -930,6 +933,24 @@ Void MsgToMLHook(Text[] msg) {
     Archivist_MsgToAngelscript_Serial = Archivist_MsgToAngelscript.count;
 }
 
+Void LoadInitSettings() {
+    ArchivistSettings = K_PluginSettings {
+        S_NbPbGhosts = 3,
+        S_NbRecentGhosts = 5,
+        S_SaveAfterRaceTimeMs = 2000,
+        S_KeepAllGhostsLoaded = False,
+        S_RefreshRecordsRegularly = False,
+        S_NoSaveIfNoMove = True,
+        S_SaveGhosts = True,
+        S_SaveReplays = True,
+        S_SeparatePartialRuns = True,
+        S_SaveTruncatedRuns = True,
+        S_ReplayNameTemplate = "{date_time} {duration}ms {username}",
+        S_ReplayFolderTemplate = "{map_name}"
+    };
+    AddDebugLog("Setting initial settings: " ^ ArchivistSettings);
+}
+
 declare Integer LastRefreshRecords;
 
 Void RefreshRecordsUI() {
@@ -1475,6 +1496,8 @@ Void MB_AddGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
 Void MB_SaveReplay(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
     if (ArchivistSettings.S_SaveReplays) {
         SaveReplay(Ghost, IsPartial, IsSegmented);
+    } else {
+        AddDebugLog("Skipping save replay b/c settings.");
     }
 }
 
@@ -1493,6 +1516,8 @@ Void MB_UploadGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
         AddDebugLog("Upload: Ghost.Id: " ^ Ghost.Id ^ " to file: " ^ ReplayFileName);
         declare UploadTask = DataFileMgr.Ghost_Upload("http://localhost:29806/" ^ ReplayFileName, Ghost, OpAuthHeaders());
         A_PendingWebTasks.add(UploadTask);
+    } else {
+        AddDebugLog("Skipping upload ghost b/c settings.");
     }
 }
 Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
@@ -1542,6 +1567,7 @@ Void ProcessArchivistSetting(Text[] Msgs) {
 
 
 Void ProcessIncoming(Text[] Msgs) {
+    AddDebugLog("Incoming msg from mlhook: " ^ Msgs);
     if (Msgs.count < 1) return;
     declare Text msgType = Msgs[0];
     // if we have single thing msgs, process here

@@ -1,6 +1,7 @@
 // call this after a map is loaded to populate settings and send the token to the game mode script
 void InitializeGameMode() {
-    UpdateModeSettingsViaMLHook();
+    trace("Initializing game mode.");
+    startnew(UpdateModeSettingsViaMLHook);
     startnew(UpdateApiTokenViaMLHook);
     // only need the http server if ghosts are enabled.
     if (S_SaveGhosts)

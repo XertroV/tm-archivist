@@ -22,6 +22,7 @@ class AboutTab : Tab {
  Archivist will load any map you like in a custom game mode.
  This is how Archivist can record every partial and complete run.
  There are a number of settings you should configure under the "Home" tab.
+ If settings don't seem to work, you are likely experiencing an odd bug -- please let me know in the plugin support thread (under `Help`).
 
  ## Ghosts vs Replays
 

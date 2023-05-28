@@ -205,6 +205,9 @@ void DrawToolbar() {
 
         if (UI::BeginMenu("Help")) {
             if (UI::MenuItem("Show About Tab", "", S_AboutTabOpen_1)) S_AboutTabOpen_1 = !S_AboutTabOpen_1;
+            if (UI::MenuItem("Plugin Support Thread (Openplanet Discord)", "", false)) {
+                OpenBrowserURL("https://discord.com/channels/276076890714800129/1106160945530667100");
+            }
             UI::EndMenu();
         }
         UI::EndMenuBar();

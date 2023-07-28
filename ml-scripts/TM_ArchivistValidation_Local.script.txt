@@ -1,7 +1,8 @@
 /**
  *	Validation Race
  */
-#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+// #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
+#Extends "Modes/Trackmania/TM_Archivist_Base.Script.txt"
 
 #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
 #Const	Version							"2023-04-25"
@@ -21,6 +22,7 @@
 #Include "Libs/Nadeo/TMNext/TrackMania/Modes/RaceValidation/Constants.Script.txt" as Consts
 #Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
 #Include "Libs/Nadeo/TMNext/TrackMania/ColorPalette.Script.txt" as ColorPalette
+#Include "Libs/Nadeo/CommonLibs/Common/Http.Script.txt" as Http
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Structures
@@ -32,6 +34,27 @@
 	Ident AuthorGhostAddId;
 	Integer[] CheckpointTimes; //< checkpoints' times to use as best times
 }
+
+
+#Struct K_PluginSettings {
+	Integer S_NbPbGhosts;
+	Integer S_NbRecentGhosts;
+	Integer S_SaveAfterRaceTimeMs;
+	Boolean S_KeepAllGhostsLoaded;
+	Boolean S_RefreshRecordsRegularly;
+	Boolean S_NoSaveIfNoMove;
+	// Boolean S_UploadGhosts;
+	Boolean S_SaveGhosts;
+	Boolean S_SaveReplays;
+	Boolean S_SeparatePartialRuns;
+	Boolean S_SaveTruncatedRuns;
+	Text S_ReplayNameTemplate;
+	Text S_ReplayFolderTemplate;
+ }
+
+ #Struct K_ValidationResult {
+	Text GhostId;
+ }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
@@ -127,6 +150,9 @@ StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 
 ***Match_InitMap***
 ***
+LoadInitSettings();
+LocalPlayerLogin = "1";
+
 declare netwrite Integer Net_RaceValidation_AuthorTime for Teams[0] = 0;
 declare netwrite Integer Net_RaceValidation_NewTime for Teams[0] = 0;
 declare K_MapState Map_State;
@@ -153,6 +179,8 @@ Map_State.CheckpointTimes = MapGet::GetSharedAuthorRaceWaypointTimes(); //< use 
 //Init ui
 Net_RaceValidation_AuthorTime = MapGet::GetSharedAuthorTime();
 Net_RaceValidation_NewTime = -1;
+
+UIManager.UIAll.BigMessage = "Archivist Validation";
 ***
 
 ***Match_StartRound***
@@ -165,6 +193,7 @@ StartTime = Now + Race::C_SpawnDuration;
 Race::ResetSolo();
 foreach (Player in Players) {
 	Race::Start(Player, StartTime);
+	LocalPlayerLogin = Player.User.Login;
 }
 ***
 
@@ -179,6 +208,18 @@ foreach (Event in Race::GetPendingEvents()) {
 			if (Event.Player != Null) {
 				if (Event.IsEndRace) {
 					Race::StopSkipScoresTable(Event.Player); //< override the outro sequence duration and do not display the scores table
+
+					if (ArchivistSettings.S_SaveTruncatedRuns) {
+						// It appears that the only time we can get a segmented ghost is as the first request to get a ghost, possibly only on the frame we finish?
+						declare CGhost GhostTrunc = Ghost_RetrieveFromPlayerWithValues(Event.Player, True);
+						// only keep a segmented ghost around if there were respawns
+						if (GhostTrunc.Result.NbRespawns > 0) {
+							ProcessCompleteTruncGhost(GhostTrunc);
+						} else {
+						   DataFileMgr.Ghost_Release(GhostTrunc.Id);
+						}
+					}
+
 					declare CGhost PrevGhost <=> Ghost_RetrieveFromPlayer(Event.Player);
 					declare CGhost NewAuthorGhost <=> Ghost_RetrieveFromPlayer(Event.Player);
 					if (PrevGhost != Null) {
@@ -188,6 +229,7 @@ foreach (Event in Race::GetPendingEvents()) {
 					if (NewAuthorGhost != Null) {
 						if (Map_State.NewAuthorGhost != Null) DataFileMgr.Ghost_Release(Map_State.NewAuthorGhost.Id);
 						Map_State.NewAuthorGhost <=> NewAuthorGhost;
+						ProcessCompleteGhost(NewAuthorGhost);
 					}
 					if (Map_State.NewAuthorGhost != Null) {
 						Map_State.CheckpointTimes = [];
@@ -199,6 +241,16 @@ foreach (Event in Race::GetPendingEvents()) {
 				} else if (Event.IsEndLap) {
 					// Update best lap time
 					Scores::UpdatePlayerBestLapIfBetter(Event.Player);
+				}
+			}
+		}
+		case Events::C_Type_GiveUp: {
+			if (Event.Player != Null) {
+				// get a partial ghost
+				declare CGhost _Ghost = Ghost_RetrieveFromPlayerWithValues(Event.Player, False);
+				_Ghost.Result.Time = Event.Player.CurrentRaceTime;
+				if (_Ghost != Null) {
+					ProcessPartialGhost(_Ghost);
 				}
 			}
 		}
@@ -229,13 +281,20 @@ foreach (Player in Players) {
 	if (MB_RoundIsRunning() && Race::IsReadyToStart(Player)) {
 		Race::ResetSolo();
 		Race::Start(Player);
+	} else {
+		if (Player.CurrentRaceTime > -100 && TL::Length(UIManager.UIAll.BigMessage) > 0) {
+			UIManager.UIAll.BigMessage = "";
+		}
 	}
 }
+
+CheckClearTaskResults();
 ***
 
 ***Match_EndRound***
 ***
 declare Boolean SkipEndRaceMenu = WaitPlayersRaceOutro();
+CheckClearTaskResults();
 
 // Try to retrieve the player's ghost again after the few seconds of the outro (not MediaTracker outro)
 // to have a few seconds after the finish included in the replay
@@ -369,7 +428,7 @@ if (!SkipEndRaceMenu) {
 // Discard unused ghost
 if (Map_State.NewAuthorGhost != Null) {
 	if (Map_State.NewAuthorGhost.Id != Map_State.AuthorGhostId && DataFileMgr.Ghosts.existskey(Map_State.NewAuthorGhost.Id)) {
-		DataFileMgr.Ghost_Release(Map_State.NewAuthorGhost.Id);
+		// DataFileMgr.Ghost_Release(Map_State.NewAuthorGhost.Id);
 	}
 	// Always set `Map_State.NewAuthorGhost` to `Null`
 	// If it was not the author ghost we released it above
@@ -388,6 +447,27 @@ UIManager.UIAll.UISequence = CUIConfig::EUISequence::Playing;
 ***
 StateMgr::ForcePlayersStates([StateMgr::C_State_Waiting]);
 ***
+
+
+
+
+
+declare K_PluginSettings ArchivistSettings;
+declare CTaskResult[] A_PendingWebTasks;
+declare Http::K_Request[] A_PendingHttpTasks;
+
+declare Text LocalPlayerLogin;
+
+
+ // for use with Beu's debug script
+ Void AddDebugLog(Text msg) {
+	// if (!C_IsDebug) return;
+	declare netwrite Text Net_DebugMode_Logs for Teams[0];
+	declare netwrite Integer Net_DebugMode_Logs_Serial for Teams[0];
+	Net_DebugMode_Logs = msg ^ "\n" ^ Net_DebugMode_Logs;
+	Net_DebugMode_Logs_Serial += 1;
+}
+
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Functions
@@ -456,6 +536,19 @@ K_MapState UpdatePlayerGhost(K_MapState _MapState) {
 	return MapState;
 }
 
+Void ReportValidationResult(CGhost Ghost) {
+	declare result = K_ValidationResult {
+		GhostId = "" ^ Ghost.Id
+	};
+	AddDebugLog("Reporting: " ^ result);
+	declare Req = Http::Update(Http::CreatePost("http://localhost:29806/report_validation", result.tojson(), ["Asdf" => "Blah"]));
+	AddDebugLog("Got request: " ^ Req);
+	A_PendingHttpTasks.add(Req);
+	if (Req.IsWaitingSlot) {
+		AddDebugLog("http request delayed due to saturated...");
+	}
+}
+
 // Save new time if better
 K_MapState SaveNewTimeIfBetter(K_MapState _MapState, Integer _NewTime, Integer _AuthorTime) {
 	declare K_MapState MapState = _MapState;
@@ -480,6 +573,8 @@ K_MapState SaveNewTimeIfBetter(K_MapState _MapState, Integer _NewTime, Integer _
 					MapGet::ShareAuthorRaceWaypointTimes(MapState.CheckpointTimes);
 					MapState.AuthorGhostAddId = GhostMgr.Ghost_Add(MapState.NewAuthorGhost, True);
 					Ghost_CopyToScoreBestRaceAndLap(MapState.NewAuthorGhost, Players[0].Score);
+					// Report to archivist
+					ReportValidationResult(MapState.NewAuthorGhost);
 				}
 		}
 	}
@@ -535,6 +630,8 @@ Void TogglePodium() {
 	if (UIManager.UIAll.UISequence == C_UISequence_Replay) {
 		UIManager.UIAll.UISequence = C_UISequence_Podium;
 		Net_RaceValidation_PodiumSequenceActive = True;
+		UIManager.UIAll.UISequence_PodiumPlayersWin = LocalPlayerLogin ^ ",2,3";
+		UIManager.UIAll.UISequence_PodiumPlayersLose = "4,5,6";
 	} else if (UIManager.UIAll.UISequence == C_UISequence_Podium) {
 		UIManager.UIAll.UISequence = C_UISequence_Replay;
 		Net_RaceValidation_PodiumSequenceActive = False;
@@ -547,6 +644,9 @@ Void ViewRacePodium() {
 	declare netwrite Boolean Net_RaceValidation_RacePodiumIsVisible for Teams[0] = False;
 	Net_RaceValidation_RacePodiumIsVisible = True;
 	Utils::PushAndApplyUISequence(UIManager.UIAll, CUIConfig::EUISequence::Podium);
+
+	UIManager.UIAll.UISequence_PodiumPlayersWin = LocalPlayerLogin ^ ",2,3";
+	UIManager.UIAll.UISequence_PodiumPlayersLose = "4,5,6";
 
 	declare Boolean PodiumIsActive = True;
 	while (PodiumIsActive) {
@@ -563,4 +663,192 @@ Void ViewRacePodium() {
 
 	Utils::PopAndApplyUISequence(UIManager.UIAll);
 	Net_RaceValidation_RacePodiumIsVisible = False;
+}
+
+
+/**
+ *    db    88""Yb  dP""b8 88  88 88 Yb    dP 88 .dP"Y8 888888     888888 88   88 88b 88  dP""b8 .dP"Y8
+ *   dPYb   88__dP dP   `" 88  88 88  Yb  dP  88 `Ybo."   88       88__   88   88 88Yb88 dP   `" `Ybo."
+ *  dP__Yb  88"Yb  Yb      888888 88   YbdP   88 o.`Y8b   88       88""   Y8   8P 88 Y88 Yb      o.`Y8b
+ * dP""""Yb 88  Yb  YboodP 88  88 88    YP    88 8bodP'   88       88     `YbodP' 88  Y8  YboodP 8bodP'
+ */
+
+
+
+Void MsgToMLHook(Text[] msg) {
+	declare netwrite Text[][] Archivist_MsgToAngelscript for Teams[0];
+	declare netwrite Integer Archivist_MsgToAngelscript_Serial for Teams[0];
+	Archivist_MsgToAngelscript.add(msg);
+	Archivist_MsgToAngelscript_Serial = Archivist_MsgToAngelscript.count;
+}
+
+Text OpAuthHeaders() {
+	return "Authorization: none";
+}
+
+Boolean IsFinish() {
+	return UIManager.UIAll.UISequence == CUIConfig::EUISequence::Finish;
+}
+
+Boolean IsPlaying() {
+	return UIManager.UIAll.UISequence == CUIConfig::EUISequence::Playing;
+}
+
+Void LoadInitSettings() {
+	ArchivistSettings = K_PluginSettings {
+		S_NbPbGhosts = 0,
+		S_NbRecentGhosts = 0,
+		S_SaveAfterRaceTimeMs = 2000,
+		S_KeepAllGhostsLoaded = False,
+		S_RefreshRecordsRegularly = False,
+		S_NoSaveIfNoMove = True,
+		S_SaveGhosts = True,
+		S_SaveReplays = False,
+		S_SeparatePartialRuns = True,
+		S_SaveTruncatedRuns = True,
+		S_ReplayNameTemplate = "{date_time} {duration}ms {username}",
+		S_ReplayFolderTemplate = "{map_name}-validation"
+	};
+	AddDebugLog("Setting initial settings: " ^ ArchivistSettings);
+}
+
+
+CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player, Boolean Truncate) {
+	declare Ghost = Ghost_RetrieveFromPlayer(Player, Truncate);
+	if (Ghost == Null || Ghost.Result == Null) return Ghost;
+	Ghost.Result.NbRespawns = Player.Score.NbRespawnsRequested;
+	if (Truncate) {
+		Ghost.Nickname = Ghost.Nickname ^ " (Segmented)";
+		// 1399154541 is 0x5365676d which is the bytes "Segm" as an int
+		Ghost.Result.Score = 1399154541;
+	}
+	return Ghost;
+}
+CGhost Ghost_RetrieveFromPlayerWithValues(CSmPlayer Player) {
+	return Ghost_RetrieveFromPlayerWithValues(Player, False);
+}
+
+
+Text RenderPathTemplate(Text Template, CGhost Ghost) {
+	declare Text CLDT = System.CurrentLocalDateText;
+	declare Integer Timestamp = System.CurrentLocalDate;
+	declare CLDTParts = TL::Split(" ", CLDT);
+	declare Date = TL::Replace(CLDTParts[0], "/", "-");
+	declare Time = TL::Replace(CLDTParts[1], ":", "-");
+	declare CleanMapName = TL::Replace(Map.MapInfo.Name, "#", "");
+	CleanMapName = TL::Replace(CleanMapName, "/", "-");
+	CleanMapName = TL::Replace(CleanMapName, "\\", "-");
+	CleanMapName = TL::Replace(CleanMapName, ":", "-");
+	CleanMapName = TL::Replace(CleanMapName, "*", "");
+	CleanMapName = TL::Replace(CleanMapName, "?", "");
+	CleanMapName = TL::Replace(CleanMapName, "\"", "");
+	CleanMapName = TL::Replace(CleanMapName, "<", "(");
+	CleanMapName = TL::Replace(CleanMapName, ">", ")");
+	CleanMapName = TL::Replace(CleanMapName, "|", "");
+	declare Ret = TL::Replace(Template, "{map_uid}", Map.MapInfo.MapUid);
+	Ret = TL::Replace(Ret, "{date_time}", Date^" "^Time);
+	Ret = TL::Replace(Ret, "{date}", Date);
+	Ret = TL::Replace(Ret, "{duration}", ""^Ghost.Result.Time);
+	Ret = TL::Replace(Ret, "{username}", AllPlayers[0].User.Name);
+	Ret = TL::Replace(Ret, "{map_name}", TL::StripFormatting(CleanMapName));
+	Ret = TL::Replace(Ret, "{timestamp}", ""^Timestamp);
+	return Ret;
+ }
+
+ Text GhostTemplateFileNameNoSuffix(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+	declare Text ReplayFolderName = RenderPathTemplate(ArchivistSettings.S_ReplayFolderTemplate, Ghost);
+	if (ArchivistSettings.S_SeparatePartialRuns) {
+		if (IsPartial) {
+			ReplayFolderName = ReplayFolderName ^ "/Partial";
+		} else {
+			ReplayFolderName = ReplayFolderName ^ "/Complete";
+		}
+		if (IsSegmented) {
+			ReplayFolderName = ReplayFolderName ^ "/Segmented";
+		}
+	}
+	declare Text ReplayFileName = RenderPathTemplate(ArchivistSettings.S_ReplayNameTemplate, Ghost);
+	ReplayFileName = TL::Replace(ReplayFileName, ".", "");
+	ReplayFileName = "Archivist/"^ReplayFolderName^"/"^ReplayFileName;
+	return ReplayFileName;
+ }
+
+
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+/// Upload a ghost based on user settings
+Void MB_UploadGhost(CGhost Ghost, Boolean IsPartial, Boolean IsSegmented) {
+	if (ArchivistSettings.S_SaveGhosts) {
+		declare Text ReplayFileName = GhostTemplateFileNameNoSuffix(Ghost, IsPartial, IsSegmented)^".Ghost.Gbx";
+		AddDebugLog("Upload: Ghost.Id: " ^ Ghost.Id ^ " to file: " ^ ReplayFileName);
+		declare UploadTask = DataFileMgr.Ghost_Upload("http://localhost:29806/" ^ ReplayFileName, Ghost, OpAuthHeaders());
+		A_PendingWebTasks.add(UploadTask);
+	} else {
+		AddDebugLog("Skipping upload ghost b/c settings.");
+	}
+}
+Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
+	MB_UploadGhost(Ghost, Partial, False);
+}
+
+declare Integer _CountNbGhostsTotal;
+
+Void PostProcessGhost(CGhost Ghost, Boolean Partial, Boolean Trunc) {
+	// sometimes we get an error about a missing key when we try to use Ghost.Nickname
+	if (!DataFileMgr.Ghosts.existskey(Ghost.Id)) return;
+	_CountNbGhostsTotal += 1;
+	Ghost.Nickname ^= " #" ^ _CountNbGhostsTotal;
+	if (Partial) {
+		Ghost.Nickname ^= " (Partial)";
+	}
+}
+
+Void ProcessCompleteTruncGhost(CGhost Ghost) {
+	// if the ghost has no respawns, or respawns aren't set, don't save a segmented run b/c the normal replay will be enough.
+	if (Ghost.Result.NbRespawns <= 0) return;
+	// todo setting for adding truncated ghosts
+	MB_UploadGhost(Ghost, False, True);
+	PostProcessGhost(Ghost, False, True);
+}
+
+Void ProcessCompleteGhost(CGhost Ghost) {
+	MB_UploadGhost(Ghost, False, False);
+	PostProcessGhost(Ghost, False, False);
+}
+
+Void ProcessPartialGhost(CGhost Ghost) {
+	MB_UploadGhost(Ghost, True, False);
+	PostProcessGhost(Ghost, True, False);
+}
+
+
+Void CheckClearTaskResults() {
+	declare CTaskResult[] ToRemove;
+	foreach (Task in A_PendingWebTasks) {
+		if (!Task.IsProcessing) {
+			if (DataFileMgr.TaskResults.existskey(Task.Id)) {
+				DataFileMgr.TaskResult_Release(Task.Id);
+			}
+			ToRemove.add(Task);
+		}
+	}
+	foreach (Task in ToRemove) {
+		A_PendingWebTasks.remove(Task);
+		AddDebugLog("Cleared DFM pending task");
+	}
+
+	declare Integer[] HttpToRem;
+	foreach (Ix => Req in A_PendingHttpTasks) {
+		A_PendingHttpTasks[Ix] = Http::Update(Req);
+		if (A_PendingHttpTasks[Ix].IsDestroyed) {
+			// Ix is in reverse order (largest to smallest)
+			HttpToRem.addfirst(Ix);
+		}
+	}
+	// Ix is in reverse order (largest to smallest)
+	foreach (Ix in HttpToRem) {
+		A_PendingHttpTasks.removekey(Ix);
+		AddDebugLog("Cleared Http Request with Ix: " ^ Ix);
+	}
 }

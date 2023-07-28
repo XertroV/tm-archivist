@@ -30,6 +30,7 @@ void _Unload() {
 }
 
 const string ArchivistModeScriptName = "TM_Archivist_" + Time::Now + "_Local";
+const string ArchivistValidationModeScriptName = "TM_ArchivistValidation_" + Time::Now + "_Local";
 
 void UpdateArchivistGameModeScript() {
     string scriptsModeTmFolder = IO::FromUserGameFolder("Scripts/Modes/Trackmania");
@@ -41,7 +42,7 @@ void UpdateArchivistGameModeScript() {
     for (uint i = 0; i < scriptFiles.Length; i++) {
         if (scriptFiles[i].EndsWith("_Local.Script.txt")) {
             @parts = scriptFiles[i].Split("/");
-            if (parts.Length > 0 && parts[parts.Length - 1].StartsWith("TM_Archivist_")) {
+            if (parts.Length > 0 && parts[parts.Length - 1].StartsWith("TM_Archivist")) {
                 trace('Removing old archivist script file: ' + scriptFiles[i]);
                 IO::Delete(scriptFiles[i]);
             }
@@ -55,10 +56,21 @@ void UpdateArchivistGameModeScript() {
         debugFile.Close();
     }
 
-    IO::File gmFile(IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistModeScriptName + ".Script.txt"), IO::FileMode::Write);
-    gmFile.Write(TM_ARCHIVIST_LOCAL_SCRIPT_TXT);
+    WriteScript(
+        IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistModeScriptName + ".Script.txt"),
+        TM_ARCHIVIST_LOCAL_SCRIPT_TXT
+    );
+    WriteScript(
+        IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistValidationModeScriptName + ".Script.txt"),
+        TM_ARCHIVISTVALIDATION_LOCAL_SCRIPT_TXT
+    );
+    trace('Updated Archivist game mode scripts: ' + ArchivistModeScriptName + ", " + ArchivistValidationModeScriptName);
+}
+
+void WriteScript(const string &in path, const string &in script) {
+    IO::File gmFile(path, IO::FileMode::Write);
+    gmFile.Write(script);
     gmFile.Close();
-    trace('Updated Archivist game mode script');
 }
 
 string g_MapUid;
@@ -101,8 +113,12 @@ void CheckCurrentGameModeForArchivist() {
     if (checkedGameModeAtStartup) return;
     checkedGameModeAtStartup = true;
     try {
+        if (GetApp().Editor !is null) {
+            // start it in the editor in case it matters -- editor is rarely open anyway on load
+            StartHttpServer();
+        }
         auto si = cast<CTrackManiaNetworkServerInfo>(GetApp().Network.ServerInfo);
-        if (si.CurGameModeStr.StartsWith("TM_Archivist_")) {
+        if (si.CurGameModeStr.StartsWith("TM_Archivist")) {
             // if we load the plugin while in an archivist map (i.e., plugin reload) then start the http server.
             StartHttpServer();
         }

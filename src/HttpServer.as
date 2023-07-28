@@ -19,6 +19,7 @@ HttpResponse@ RouteRequests(const string &in type, const string &in route, dicti
     log_info("Route: " + route);
     log_info("Data length: " + data.Length);
     if (route == '/report_result') return HandleReportResult(type, route, headers, data);
+    if (route == '/report_validation') return HandleReportValidation(type, route, headers, data);
     return HandleGhostUpload(type, route, headers, data);
 }
 
@@ -35,8 +36,22 @@ HttpResponse@ HandleReportResult(const string &in type, const string &in route, 
     return HttpResponse(200, "Ta");
 }
 
-HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
+HttpResponse@ HandleReportValidation(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
     if (type != "POST") return HttpResponse(405, "Must be a POST request.");
+    log_info("Data: " + data);
+    try {
+        auto report = Json::Parse(data);
+        // LocalStats::IncrRuns(report['MapUid'], !bool(report['Partial']), report['DurationSec'], report['NbRespawns'], report['NbCheckpoints']);
+        string ghostId = report['GhostId'];
+        OnNewValidationGhost(ghostId);
+    } catch {
+        log_warn("Exception processing report result: " + getExceptionInfo());
+    }
+    return HttpResponse(200, "Ta");
+}
+
+HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, dictionary@ headers, const string &in data) {
+    if (type != "POST" && type != "GET") return HttpResponse(405, "Must be a POST or GET request.");
     if (!route.ToLower().EndsWith(".ghost.gbx")) {
         return HttpResponse(404);
     }
@@ -47,6 +62,16 @@ HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, d
     }
     auto fname = Net::UrlDecode(ReplayPathWithSuffix(route, suffix));
     string folderPath = GetFolderPath(fname);
+
+    if (type == "GET") {
+        try {
+            IO::File gfile(fname, IO::FileMode::Read);
+            return HttpResponse(200, gfile.ReadToEnd());
+        } catch {
+            return HttpResponse(500, "Exception reading ghost: " + getExceptionInfo());
+        }
+    }
+
     Notify("Saving ghost to: " + fname);
     if (!IO::FolderExists(folderPath)) {
         IO::CreateFolder(folderPath, true);

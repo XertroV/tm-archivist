@@ -1526,6 +1526,8 @@ Void MB_UploadGhost(CGhost Ghost, Boolean Partial) {
 declare Integer _CountNbGhostsTotal;
 
 Void PostProcessGhost(CGhost Ghost, Boolean Partial, Boolean Trunc) {
+    // sometimes we get an error about a missing key when we try to use Ghost.Nickname
+    if (!DataFileMgr.Ghosts.existskey(Ghost.Id)) return;
     _CountNbGhostsTotal += 1;
     Ghost.Nickname ^= " #" ^ _CountNbGhostsTotal;
     if (Partial) {

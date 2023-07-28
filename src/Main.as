@@ -16,6 +16,7 @@ void Main() {
     LocalStats::Load();
     startnew(AuthLoop);
     startnew(WatchForMapChange);
+    startnew(SetupEditorIntercepts);
     UpdateArchivistGameModeScript();
     UpdateModeSettingsViaMLHook();
     CheckCurrentGameModeForArchivist();

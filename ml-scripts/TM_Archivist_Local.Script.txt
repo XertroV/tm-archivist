@@ -358,6 +358,8 @@ declare Integer Map_RecordGhostLoopDelay;
 // Add bot when necessary
 Users_SetNbFakeUsers(C_FakeUsersNb, 0);
 
+NetShare::SetHasNextMap(NextMapIndex != 0);
+
 // Remove records ghosts
 Map_LoadingRecordGhost = ReleaseRecordGhost(Map_LoadingRecordGhost);
 Map_LoadedRecordGhost = ReleaseRecordGhost(Map_LoadedRecordGhost);

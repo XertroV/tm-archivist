@@ -17,6 +17,7 @@ void Main() {
     startnew(AuthLoop);
     startnew(WatchForMapChange);
     startnew(SetupEditorIntercepts);
+    startnew(SetupPlayMapIntercepts);
     UpdateArchivistGameModeScript();
     UpdateModeSettingsViaMLHook();
     CheckCurrentGameModeForArchivist();
@@ -114,7 +115,7 @@ void CheckCurrentGameModeForArchivist() {
     checkedGameModeAtStartup = true;
     try {
         if (GetApp().Editor !is null) {
-            // start it in the editor in case it matters -- editor is rarely open anyway on load
+            // start it in the editor in case it matters -- editor is rarely open anyway on load, but we can't detect the game mode if the user is validating
             StartHttpServer();
         }
         auto si = cast<CTrackManiaNetworkServerInfo>(GetApp().Network.ServerInfo);
@@ -162,9 +163,9 @@ void RenderMenuMain() {
         if (UI::MenuItem("Explore PgScript")) ExploreNod(GetApp().PlaygroundScript);
         if (UI::MenuItem("Explore PgScript.DataFileMgr")) ExploreNod(GetApp().PlaygroundScript.DataFileMgr);
         if (UI::MenuItem("Explore N.CMAPG.DataFileMgr")) ExploreNod(GetApp().Network.ClientManiaAppPlayground.DataFileMgr);
-        if (UI::MenuItem("Auth Token Len: " + g_opAuthToken.Length)) {
-            log_trace("Auth token: " + g_opAuthToken);
-        }
+        // if (UI::MenuItem("Auth Token Len: " + g_opAuthToken.Length)) {
+        //     log_trace("Auth token: " + g_opAuthToken);
+        // }
         UI::EndMenu();
     }
 }
@@ -321,7 +322,7 @@ void DrawMain() {
 
 string tmxIdToUrl(const string &in id) {
     if (m_UseTmxMirror) {
-        return "https://cgf.s3.nl-1.wasabisys.com/" + id + ".Map.Gbx";
+        return "https://map-monitor.xk.io/maps/download/" + id;
     }
     return "https://trackmania.exchange/maps/download/" + id;
 }

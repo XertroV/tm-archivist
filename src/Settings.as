@@ -1,6 +1,12 @@
 [Setting hidden]
 bool S_AboutTabOpen_1 = true;
 
+[Setting category="General" name="Start Solo Maps in Archivist Mode" description="When enabled, maps started with the PlayMap call (e.g., RMC, Bingo) will load in Archivist."]
+bool S_InterceptPlayMap = false;
+
+[Setting category="General" name="Start Campaign Maps in Archivist Mode" description="When enabled, maps started with the PlayMapList call (e.g., Campaigns) will load in Archivist. \\$f80Warning!\\$z There is no 'play next map' functionality currently. Only the first map will load, then you need to exit to load the next map."]
+bool S_InterceptCampaign = false;
+
 [Setting category="Editor" name="Use Archivist Validation" description="Use Archivist's validation mode instead of the normal validation mode. Full, partial, and segmented ghosts will be saved for every run."]
 bool S_UseArchivistValidation = true;
 

@@ -210,7 +210,7 @@ Race::SetupRecord(
 	C_CelebrateRecordMedal,
 	C_DisplayWorldTop
 );
-Ghost::EnableBestGhosts(True);
+Ghost::EnableBestGhosts(False);
 
 Server_IsAgainstReplay = False;
 ***

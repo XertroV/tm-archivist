@@ -72,7 +72,9 @@ HttpResponse@ HandleGhostUpload(const string &in type, const string &in route, d
         }
     }
 
-    Notify("Saving ghost to: " + fname);
+    if (S_ShowSaveNotifications) {
+        Notify("Saving ghost to: " + fname);
+    }
     if (!IO::FolderExists(folderPath)) {
         IO::CreateFolder(folderPath, true);
     }

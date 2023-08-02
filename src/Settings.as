@@ -4,6 +4,9 @@ bool S_AboutTabOpen_1 = true;
 [Setting category="Editor" name="Use Archivist Validation" description="Use Archivist's validation mode instead of the normal validation mode. Full, partial, and segmented ghosts will be saved for every run."]
 bool S_UseArchivistValidation = true;
 
+[Setting category="UI" name="Show Notifications" description="Show a notification when a ghost is saved."]
+bool S_ShowSaveNotifications = true;
+
 [Setting name="Log Level" category="General"]
 LogLevel S_LogLevel = LogLevel::Info;
 

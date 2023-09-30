@@ -3,7 +3,7 @@ const string TM_ARCHIVISTVALIDATION_LOCAL_SCRIPT_TXT = """
  *	Validation Race
  */
 // #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
- #Extends "Modes/Trackmania/TM_Archivist_Base.Script.txt"
+ #Extends "Modes/Trackmania/TM_Archivist_Base2.Script.txt"
 
  #Const	CompatibleMapTypes	"TrackMania\\TM_Race,TM_Race"
  #Const	Version							"2023-04-25"
@@ -14,16 +14,16 @@ const string TM_ARCHIVISTVALIDATION_LOCAL_SCRIPT_TXT = """
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  #Include "TextLib" as TL
  #Include "TimeLib" as TiL
- #Include "Libs/Nadeo/CommonLibs/Common/Task.Script.txt" as Task
- #Include "Libs/Nadeo/ModeLibs/Common/Utils.Script.txt" as Utils
- #Include "Libs/Nadeo/TMxSM/Race/MapGet.Script.txt" as MapGet
- #Include "Libs/Nadeo/TMxSM/RaceValidation/StateManager.Script.txt" as StateMgr
- #Include "Libs/Nadeo/TMxSM/Race/ValidationEvents.Script.txt" as ValidationEvents
- #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
- #Include "Libs/Nadeo/TMNext/TrackMania/Modes/RaceValidation/Constants.Script.txt" as Consts
- #Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
- #Include "Libs/Nadeo/TMNext/TrackMania/ColorPalette.Script.txt" as ColorPalette
- #Include "Libs/Nadeo/CommonLibs/Common/Http.Script.txt" as Http
+ #Include "Libs/Nadeo/CMGame/Utils/Task.Script.txt" as Task
+ #Include "Libs/Nadeo/CMGame/Modes/Utils.Script.txt" as Utils
+ #Include "Libs/Nadeo/CMGame/Utils/Stylesheet.Script.txt" as Stylesheet
+ #Include "Libs/Nadeo/TMGame/Modes/MapGet.Script.txt" as MapGet
+ #Include "Libs/Nadeo/TMGame/Modes/RaceValidation/StateManager.Script.txt" as StateMgr
+ #Include "Libs/Nadeo/TMGame/Modes/RaceValidation/ValidationEvents.Script.txt" as ValidationEvents
+ #Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+ #Include "Libs/Nadeo/TMGame/Modes/RaceValidation/Constants.Script.txt" as Consts
+ #Include "Libs/Nadeo/CMGame/Modes/UIModules/Fade_Server.Script.txt" as UIModules_Fade
+ #Include "Libs/Nadeo/CMGame/Utils/Http.Script.txt" as Http
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Structures
@@ -60,7 +60,7 @@ const string TM_ARCHIVISTVALIDATION_LOCAL_SCRIPT_TXT = """
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
- #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMxSM/RaceValidation/RaceValidation.Script.txt" //< Url of the mania app
+ #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMGame/RaceValidation/RaceValidation.Script.txt" //< Url of the mania app
 
  #Const C_UISequence_Replay CUIConfig::EUISequence::EndRound
  #Const C_UISequence_Podium CUIConfig::EUISequence::Podium
@@ -346,7 +346,7 @@ if (!SkipEndRaceMenu) {
 		UIManager.UIAll.Spectator_SetForcedTarget_Ghost(GhostAddIdToFollow);
 	}
 	if (GhostRestartTime >= 0) {
-		UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, ColorPalette::C_Color_Black);
+		UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 	}
 
 	Net_RaceValidation_CanViewReplay = (GhostAddIdToFollow != NullId);
@@ -393,7 +393,7 @@ if (!SkipEndRaceMenu) {
 			if (DataFileMgr.Ghosts.existskey(GhostIdToFollow)) {
 				Ghosts_SetStartTime(Now);
 				GhostRestartTime = Now + DataFileMgr.Ghosts[GhostIdToFollow].Result.Time + GhostRestartDelay;
-				UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, ColorPalette::C_Color_Black);
+				UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 			} else {
 				GhostRestartTime = -1;
 			}

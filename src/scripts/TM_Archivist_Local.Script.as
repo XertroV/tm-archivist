@@ -3,7 +3,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 *	PlayMap mode
 */
 //  #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
- #Extends "Modes/Trackmania/TM_Archivist_Base.Script.txt"
+ #Extends "Modes/Trackmania/TM_Archivist_Base2.Script.txt"
 
  #Const CompatibleMapTypes "TrackMania\\TM_Race,TM_Race"
  #Const Version "2022-10-24"
@@ -14,23 +14,23 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  #Include "TextLib" as TL
  #Include "TimeLib" as TiL
- #Include "MathLib" as Math
- #Include "Libs/Nadeo/CommonLibs/Common/Task.Script.txt" as Task
- #Include "Libs/Nadeo/CommonLibs/Common/MainUser.Script.txt" as MainUser
- #Include "Libs/Nadeo/TMNext/TrackMania/Modes/PlayMap/StateManager.Script.txt" as StateMgr
- #Include "Libs/Nadeo/TMNext/TrackMania/ColorPalette.Script.txt" as ColorPalette
- #Include "Libs/Nadeo/TMNext/TrackMania/Menu/Constants.Script.txt" as MenuConsts
- #Include "Libs/Nadeo/TMNext/TrackMania/Modes/PlayMap/Constants.Script.txt" as Const
- #Include "ManiaApps/Nadeo/TMxSM/Race/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
- #Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
- #Include "ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
- #Include "ManiaApps/Nadeo/ModeLibs/Common/UIModules/Fade_Server.Script.txt" as UIModules_Fade
- #Include "ManiaApps/Nadeo/TMNext/TrackMania/UIModules/NetShare_Server.Script.txt" as NetShare
- #Include "Libs/Nadeo/TMNext/TrackMania/Stores/UserStore_MA.Script.txt" as UserStore
- #Include "Libs/Nadeo/TMNext/TrackMania/Structures/CampaignStruct.Script.txt" as CampaignStruct
- #Include "Libs/Nadeo/TMNext/TrackMania/Modes/Constants.Script.txt" as ModeConst
- #Include "Libs/Nadeo/MenuLibs/Common/Components/Tools.Script.txt" as Tools
- #Include "Libs/Nadeo/CommonLibs/Common/Http.Script.txt" as Http
+ #Include "MathLib" as ML
+ #Include "Libs/Nadeo/CMGame/Utils/Task.Script.txt" as Task
+ #Include "Libs/Nadeo/CMGame/Utils/MainUser.Script.txt" as MainUser
+ #Include "Libs/Nadeo/CMGame/Utils/Stylesheet.Script.txt" as Stylesheet
+ #Include "Libs/Nadeo/Trackmania/Modes/PlayMap/StateManager.Script.txt" as StateMgr
+ #Include "Libs/Nadeo/Trackmania/MainMenu/Constants.Script.txt" as MenuConsts
+ #Include "Libs/Nadeo/Trackmania/Modes/PlayMap/Constants.Script.txt" as Const
+ #Include "Libs/Nadeo/TMGame/Modes/Base/UIModules/TimeGap_Server.Script.txt" as UIModules_TimeGap
+ #Include "Libs/Nadeo/Trackmania/Modes/PlayMap/UIModules/PauseMenu_Server.Script.txt" as UIModules_PauseMenu
+ #Include "Libs/Nadeo/Trackmania/Modes/PlayMap/UIModules/EndRaceMenu_Server.Script.txt" as UIModules_EndRaceMenu
+ #Include "Libs/Nadeo/CMGame/Modes/UIModules/Fade_Server.Script.txt" as UIModules_Fade
+ #Include "Libs/Nadeo/Trackmania/Modes/UIModules/NetShare_Server.Script.txt" as NetShare
+ #Include "Libs/Nadeo/Trackmania/Stores/UserStore_MA.Script.txt" as UserStore
+ #Include "Libs/Nadeo/Trackmania/Structures/CampaignStruct.Script.txt" as CampaignStruct
+ #Include "Libs/Nadeo/Trackmania/Modes/Constants.Script.txt" as ModeConst
+ #Include "Libs/Nadeo/CMGame/Utils/Tools.Script.txt" as Tools
+ #Include "Libs/Nadeo/CMGame/Utils/Http.Script.txt" as Http
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Settings
@@ -100,7 +100,7 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
  #Const Description _("Play a track locally")
 
  #Const C_HudModulePath "" //< Path to the hud module
- #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/TMNext/TrackMania/PlayMap/PlayMap.Script.txt" //< Url of the mania app
+ #Const C_ManiaAppUrl "file://Media/ManiaApps/Nadeo/Trackmania/Modes/PlayMap.Script.txt" //< Url of the mania app
  #Const C_FakeUsersNb 0
  #Const C_MaximumAdditionalReplaysNb 100
 
@@ -531,7 +531,7 @@ if (!Round_SetInitPos) {
 	}
 } else if (!Round_HasMoved) {
 	declare Vec3 dist = Round_InitPos - MainPlayer.Position;
-	if (Math::Length(dist) > 5.) {
+	if (ML::Length(dist) > 5.) {
 		Round_HasMoved = True;
 		AddDebugLog("Set Round_HasMoved to True. Distance: "^dist);
 	}
@@ -615,7 +615,7 @@ if (Map_LoadingRecordGhost.AccountId != "") {
 
 				Map_RecordGhostLoopDelay = Now + 250;
 				Map_LoadingRecordGhost.Ghost = SourceTask.Ghost;
-				UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, Now, 200, ColorPalette::C_Color_Black);
+				UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, Now, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 			} else { //< Respawn the player if the record ghost cannot be retrieved
 				Map_LoadedRecordGhost = ReleaseRecordGhost(Map_LoadedRecordGhost);
 				Map_LoadingRecordGhost.AccountId = "";
@@ -652,7 +652,7 @@ if (Map_RecordGhostLoopTimer >= 0 && Now >= Map_RecordGhostLoopTimer) {
 		UIManager.UIAll.Spectator_SetForcedTarget_Ghost(Map_LoadedRecordGhost.GhostInstanceId);
 		UIManager.UIAll.UISequence = CUIConfig::EUISequence::EndRound;
 		Map_RecordGhostLoopTimer = Now + DataFileMgr.Ghosts[Map_LoadedRecordGhost.Ghost.Id].Result.Time;
-		UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, Map_RecordGhostLoopTimer - 250, 200, ColorPalette::C_Color_Black);
+		UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, Map_RecordGhostLoopTimer - 250, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 	} else {
 		Map_RecordGhostLoopTimer = -1;
 	}
@@ -765,7 +765,7 @@ if (!SkipEndRaceMenu) {
 		UIManager.UIAll.Spectator_SetForcedTarget_Ghost(GhostAddIdToFollow);
 	}
 	if (GhostRestartTime >= 0) {
-		UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, ColorPalette::C_Color_Black);
+		UIModules_Fade::SetFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 	}
 
 	declare CUIConfig::EUISequence PrevUISequence = UIManager.UIAll.UISequence;
@@ -844,7 +844,7 @@ if (!SkipEndRaceMenu) {
 			if (DataFileMgr.Ghosts.existskey(GhostIdToFollow)) {
 				Ghosts_SetStartTime(Now);
 				GhostRestartTime = Now + DataFileMgr.Ghosts[GhostIdToFollow].Result.Time + GhostRestartDelay;
-				UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, ColorPalette::C_Color_Black);
+				UIModules_Fade::AddFade(UIModules_Fade::C_Fade_In, GhostRestartTime - 250, 200, Stylesheet::GetColorHex6(Stylesheet::C_Color_FadeOutDark));
 			} else {
 				GhostRestartTime = -1;
 			}

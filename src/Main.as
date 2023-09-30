@@ -50,10 +50,10 @@ void UpdateArchivistGameModeScript() {
         }
     }
 
-    string debugShim = IO::FromUserGameFolder("Scripts/Modes/Trackmania/TM_Archivist_Base.Script.txt");
+    string debugShim = IO::FromUserGameFolder("Scripts/Modes/Trackmania/TM_Archivist_Base2.Script.txt");
     if (!IO::FileExists(debugShim)) {
         IO::File debugFile(debugShim, IO::FileMode::Write);
-        debugFile.Write('#Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"\n#Const C_IsDebug True\n');
+        debugFile.Write('#Extends "Modes/Nadeo/Trackmania/Base/TrackmaniaBase.Script.txt"\n#Const C_IsDebug True\n');
         debugFile.Close();
     }
 

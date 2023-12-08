@@ -2,7 +2,7 @@
 name     = "Archivist"
 author   = "XertroV"
 category = "Replay"
-version  = "0.2.4"
+version  = "0.2.5"
 siteid   = 328
 
 [script]

@@ -7,7 +7,9 @@ bool _ButtonValidateOnClick(CMwStack &in stack, CMwNod@ nod) {
     string xml = stack.CurrentString();
     auto rulesMode = stack.CurrentWString(1);
     // only block this script exactly
-    if (!rulesMode.EndsWith("TM_RaceValidation_Local")) {
+    bool isRaceValidation = rulesMode.EndsWith("TM_RaceValidation_Local");
+    bool isRoyalValidation = rulesMode.EndsWith("TM_RoyalValidation_Local");
+    if (!isRaceValidation && !isRoyalValidation) {
         return true;
     }
     print(rulesMode);
@@ -18,7 +20,10 @@ bool _ButtonValidateOnClick(CMwStack &in stack, CMwNod@ nod) {
         return true;
     } else {
         StartHttpServer();
-        pmt.TestMapWithMode2("Trackmania/" + ArchivistValidationModeScriptName, xml);
+        if (isRaceValidation)
+            pmt.TestMapWithMode2("Trackmania/" + ArchivistValidationModeScriptName, xml);
+        else if (isRoyalValidation)
+            pmt.TestMapWithMode2("Trackmania/" + ArchivistRoyalValidationModeScriptName, xml);
     }
     return false;
 }

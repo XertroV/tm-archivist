@@ -32,6 +32,7 @@ void _Unload() {
 
 const string ArchivistModeScriptName = "TM_Archivist_" + Time::Now + "_Local";
 const string ArchivistValidationModeScriptName = "TM_ArchivistValidation_" + Time::Now + "_Local";
+const string ArchivistRoyalValidationModeScriptName = "TM_ArchivistRoyalValidation_" + Time::Now + "_Local";
 
 void UpdateArchivistGameModeScript() {
     string scriptsModeTmFolder = IO::FromUserGameFolder("Scripts/Modes/Trackmania");
@@ -65,7 +66,11 @@ void UpdateArchivistGameModeScript() {
         IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistValidationModeScriptName + ".Script.txt"),
         TM_ARCHIVISTVALIDATION_LOCAL_SCRIPT_TXT
     );
-    trace('Updated Archivist game mode scripts: ' + ArchivistModeScriptName + ", " + ArchivistValidationModeScriptName);
+    WriteScript(
+        IO::FromUserGameFolder("Scripts/Modes/Trackmania/" + ArchivistRoyalValidationModeScriptName + ".Script.txt"),
+        TM_ARCHIVISTROYALVALIDATION_LOCAL_SCRIPT_TXT
+    );
+    trace('Updated Archivist game mode scripts: ' + ArchivistModeScriptName + ", " + ArchivistValidationModeScriptName + ", " + ArchivistRoyalValidationModeScriptName);
 }
 
 void WriteScript(const string &in path, const string &in script) {

@@ -55,3 +55,4 @@ void OnNewValidationGhost(const string &in id) {
     //     warn("Exception in OnNewValidationGhost: " + getExceptionInfo());
     // }
 }
+

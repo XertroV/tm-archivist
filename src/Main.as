@@ -275,8 +275,10 @@ void LoadMapViaLoadMethod(ref@ _lm) {
             return;
         }
         pl = _mi.FileUrl;
+        trace('loading map from uid; url: ' + pl);
     } else if (method == 'url') {
         // nothing more to prep for url method
+        trace('loading map from url: ' + pl);
     }
     LoadMapNowInArchivist(pl);
     yield();

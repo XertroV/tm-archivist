@@ -161,7 +161,7 @@ class LoadMapsTab : Tab {
         loadCurrentUid = m_UID;
         ReturnToMenu(false);
         GetMapDetailsFromUid();
-        LoadCurrentMap();
+        LoadCurrentMap_UidAndFilename();
     }
 
     string campaignMapFilePath;
@@ -226,36 +226,58 @@ class LoadMapsTab : Tab {
         }
         auto map = app.RootMap;
         auto mi = map.MapInfo;
-        string mapFileName = "Archivist/" + StripFormatCodes(mi.Name) + '.Map.gbx';
+        string mapFileName = "Archivist/" + Text::StripFormatCodes(mi.Name) + '_' +map.EdChallengeId+ '.Map.gbx';
 
-        UI::Text(ColoredString(mi.Name));
-        if (si.IsMapDownloadAllowed) {
-            if (UI::Button("Load in Archivist##via-dl")) {
-                if (pgcsapi.SaveMap(mapFileName)) {
-                    lastSavedMapPath = mapFileName;
-                    startnew(CoroutineFunc(LoadLastSavedMap));
-                    log_info("Loading via saved map: " + ColoredString(mi.Name));
-                } else {
-                    NotifyWarning("map failed to save");
-                }
-            }
-            UI::Text("\\$888 Will be saved to Maps/"+mapFileName);
-        } else {
-            if (loadCurrentUid != mi.MapUid) {
-                loadCurrentUid = mi.MapUid;
-                currMapDeetsLoading = true;
-                loadCurrentFileName = "";
-                startnew(CoroutineFunc(GetMapDetailsFromUid));
-            }
-            if (currMapDeetsLoading) {
-                UI::Text("Loading map info...");
-            } else {
-                if (UI::Button("Load in Archivist##via-uid")) {
-                    startnew(CoroutineFunc(LoadCurrentMap));
-                }
-                UI::Text("\\$888 Map Path: " + loadCurrentFileName);
-            }
+        UI::Text(Text::OpenplanetFormatCodes(mi.Name));
+        if (UI::Button("Load in Archivist##via-dl")) {
+            startnew(CoroutineFunc(LoadCurrentMap_Generic));
         }
+        // if (si.IsMapDownloadAllowed) {
+        //     UI::Text("\\$888 Will be saved to Maps/"+mapFileName);
+        // } else {
+        //     if (loadCurrentUid != mi.MapUid) {
+        //         loadCurrentUid = mi.MapUid;
+        //         currMapDeetsLoading = true;
+        //         loadCurrentFileName = "";
+        //         startnew(CoroutineFunc(GetMapDetailsFromUid));
+        //     }
+        //     if (currMapDeetsLoading) {
+        //         UI::Text("Loading map info...");
+        //     } else {
+        //         if (UI::Button("Load in Archivist##via-uid")) {
+        //             startnew(CoroutineFunc(LoadCurrentMap));
+        //         }
+        //         UI::Text("\\$888 Map Path: " + loadCurrentFileName);
+        //     }
+        // }
+    }
+
+    void LoadCurrentMap_Generic() {
+        auto map = GetApp().RootMap;
+        if (map is null) {
+            NotifyWarning("Cannot load current map: Not in a map");
+            return;
+        }
+        auto uid = map.Id.GetName();
+        if (uid == "Unassigned") {
+            NotifyError("map had unassigned MwId?! Are you in the editor?");
+            return;
+        }
+        auto mapInfo = GetMapFromUid(uid);
+        auto url = mapInfo.FileUrl;
+        if (url.Length > 0 && url.StartsWith("https")) {
+            m_URL = url;
+            OnLoadUrlMapNow();
+            return;
+        }
+        auto fid = GetFidFromNod(map);
+        if (fid !is null && !fid.FullFileName.Contains("<virtual>")) {
+            loadCurrentFileName = fid.FullFileName;
+            loadCurrentUid = uid;
+            LoadCurrentMap_UidAndFilename();
+            return;
+        }
+        NotifyError("Could not find a valid URL or file path for the current map.");
     }
 
     string lastSavedMapPath;
@@ -267,6 +289,7 @@ class LoadMapsTab : Tab {
         InitializeGameMode();
     }
 
+
     void GetMapDetailsFromUid() {
         // todo: handle not found case
         currMapDeetsLoading = true;
@@ -277,7 +300,7 @@ class LoadMapsTab : Tab {
         currMapDeetsLoading = false;
     }
 
-    void LoadCurrentMap() {
+    void LoadCurrentMap_UidAndFilename() {
         LocalStats::SetNextMapLoadMethod(LocalStats::GenLoadMethodUid(loadCurrentUid));
         ReturnToMenu(true);
         LoadMapNowInArchivist(loadCurrentFileName);
@@ -410,7 +433,7 @@ class Folder {
             auto @mapInfo = resp.MapInfos[i];
             MapInfos.InsertLast(mapInfo);
             selected.InsertLast(true);
-            MapNames.InsertLast(ColoredString(mapInfo.NameForUi));
+            MapNames.InsertLast(Text::OpenplanetFormatCodes(mapInfo.NameForUi));
         }
         nbSelected = selected.Length;
     }

@@ -172,13 +172,13 @@ namespace LocalStats {
             log_warn("Tried to add current map but .MapInfo is null");
             return;
         }
-        log_warn("Add map to recent: " + ColoredString(mi.Name));
+        log_warn("Add map to recent: " + Text::OpenplanetFormatCodes(mi.Name));
         // auto dataMapInfos = GetMapInfosData();
         // data['map_infos'] = dataMapInfos;
         auto miData = GetMapInfoData(mi.MapUid);
         if (nextLoadMethod !is null)
             miData['load_method'] = nextLoadMethod;
-        miData['name'] = ColoredString(mi.Name);
+        miData['name'] = Text::OpenplanetFormatCodes(mi.Name);
         miData['author'] = string(mi.AuthorNickName);
         if (miData['load_method'].HasKey('tmx'))
             miData['tmx'] = miData['load_method']['tmx'];

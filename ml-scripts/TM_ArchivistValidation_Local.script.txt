@@ -93,11 +93,6 @@ Race_Settings_IsLocalMode = True;
 Race_Settings_UseDefaultUIManagement = False;
 ***
 
-***Match_LoadHud***
-***
-
-***
-
 ***Match_AfterLoadHud***
 ***
 ClientManiaAppUrl = C_ManiaAppUrl;

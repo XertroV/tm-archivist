@@ -89,14 +89,14 @@ StateMgr::Unload();
 ***
 MB_Settings_UseDefaultPodiumSequence = False;
 MB_Settings_UseDefaultTimer = False;
-MB_Settings_UseDefaultHud = (Consts::C_HudModulePath == "");
+MB_Settings_UseDefaultHud = True;
 Race_Settings_IsLocalMode = True;
 Race_Settings_UseDefaultUIManagement = False;
 ***
 
 ***Match_LoadHud***
 ***
-if (Consts::C_HudModulePath != "") Hud_Load(Consts::C_HudModulePath);
+
 ***
 
 ***Match_AfterLoadHud***

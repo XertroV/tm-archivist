@@ -1,6 +1,6 @@
 const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 /**
-*	PlayMap mode
+*	Archivist mode
 */
 //  #Extends "Libs/Nadeo/TMNext/TrackMania/Modes/TMNextBase.Script.txt"
  #Extends "Modes/Trackmania/TM_Archivist_Base2.Script.txt"
@@ -37,6 +37,8 @@ const string TM_ARCHIVIST_LOCAL_SCRIPT_TXT = """
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
  #Setting S_AgainstReplay "" as "<hidden>" //< Path to the replay file to load
  #Setting S_AdditionalReplays "" as "<hidden>" //< Paths to additional replays to load
+
+// #Setting S_Message "TestMessage"
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ //
 // Structures
@@ -417,6 +419,9 @@ declare CSmPlayer MainPlayer <=> Players[0];
 declare CUIConfig MainPlayerUI = UIManager.GetUI(MainPlayer);
 declare netread Text[][] MLHook_NetQueue_Archivist for MainPlayerUI;
 declare netread Integer MLHook_NetQueue_Archivist_Last for MainPlayerUI;
+
+// MainPlayerUI.BigMessage = S_Message;
+
 if (MLHook_NetQueue_Archivist_Last > Last_Q_Incoming) {
 	Last_Q_Incoming = MLHook_NetQueue_Archivist_Last;
 	foreach (Msgs in MLHook_NetQueue_Archivist) {
